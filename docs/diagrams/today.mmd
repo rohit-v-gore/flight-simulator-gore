@@ -1,0 +1,20 @@
+flowchart LR
+  subgraph Model["Procedural model · src/f22"]
+    D["dims.js<br/>published F-22 geometry"] --> B["body · wing · tail · engine<br/>gear · cockpit · bays"]
+    B --> A["F22.js<br/>commands → actuators<br/>control mixing · interlocks"]
+    L["livery.js<br/>paint atlas"] --> M["materials.js<br/>atlas projection shader"] --> A
+  end
+  subgraph Viewer["Viewer · index.html"]
+    W["world.js<br/>air base · terrain · clouds"]
+    UI["panel · HUD · keyboard"]
+  end
+  subgraph Flight["Flight · flight.html"]
+    X["exportModel.js<br/>GLB with baked paint"] --> CM["Cesium model<br/>node-by-node animation"]
+    FM["flightModel.js<br/>point-mass + attitude, 120 Hz"] --> CM
+    AP["autopilot.js<br/>Edwards AFB demo sortie"] --> FM
+    G[("Cesium ion<br/>terrain · imagery")] --> CM
+  end
+  A --> Viewer
+  A --> X
+  UI --> A
+  FM -->|"stick, throttle, gear, bays"| A

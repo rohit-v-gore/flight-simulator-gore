@@ -1,0 +1,16 @@
+flowchart LR
+  TC[("Test cards<br/>scenario · pass/fail criteria")] --> O["Orchestrator<br/>launches N runs<br/>batch · Monte Carlo · CI"]
+  PIL["Pilot in the loop<br/>stick · throttle · HOTAS"] --> FCS
+  O --> ENV
+  subgraph Run["Sim run · fixed step"]
+    direction TB
+    ENV["Environment<br/>atmosphere · wind · terrain"] --> FDM["6-DOF flight dynamics<br/>aero tables · engines · mass"]
+    FDM --> SEN["Sensor models<br/>IMU · air data · GPS · radar"]
+    SEN --> FCS["Flight control laws<br/>SIL: real flight software<br/>HIL: real avionics"]
+    FCS --> FDM
+  end
+  FDM -->|"state 60-1000 Hz"| BUS["Telemetry bus"]
+  BUS --> DB[("Time-series store<br/>every run, every signal")]
+  BUS -->|"WebSocket"| VIS["3D clients<br/>Three.js · Cesium<br/>(this repo)"]
+  DB --> AN["Analysis<br/>criteria checks · reports"]
+  DB --> RP["Replay<br/>scrub any run in 3D"]
