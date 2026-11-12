@@ -1,0 +1,14 @@
+# dependencies and build output
+node_modules/
+dist/
+.vite/
+
+# local secrets (see .env.example)
+.env
+.env.local
+
+# editor / OS clutter
+.DS_Store
+.idea/
+.vscode/
+*.log
