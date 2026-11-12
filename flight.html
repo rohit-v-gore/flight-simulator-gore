@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F-22 Raptor — Edwards AFB flight</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/Widgets/widgets.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/Cesium.js"></script>
+    <style>
+      html, body, #globe { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #05070a; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+      .cesium-viewer-bottom { opacity: 0.6; }
+      #status {
+        position: fixed; inset: 0; display: grid; place-items: center; color: #e4ebf2; font-size: 15px;
+        letter-spacing: 0.04em; pointer-events: none; z-index: 20; white-space: pre-wrap; text-align: center;
+      }
+      #status.err { color: #ffa4a4; }
+      .panel {
+        position: fixed; z-index: 10; padding: 10px 14px; border-radius: 10px;
+        background: rgba(10, 14, 20, 0.62); backdrop-filter: blur(6px); color: #e8eef4;
+        border: 1px solid rgba(255, 255, 255, 0.08); pointer-events: none;
+      }
+      #hud { top: 12px; left: 12px; min-width: 250px; font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      #hud .title { font: 650 13px system-ui, sans-serif; letter-spacing: 0.08em; margin-bottom: 4px; }
+      #hud .k { color: #8fb7d6; display: inline-block; width: 46px; }
+      #hud .warn { color: #ffb36b; }
+      #banner {
+        top: 14px; left: 50%; transform: translateX(-50%); font-size: 13px; border-radius: 18px;
+        padding: 6px 16px; white-space: nowrap; transition: opacity 0.4s;
+      }
+      #help { bottom: 30px; left: 12px; font-size: 11.5px; line-height: 1.6; }
+      #help kbd {
+        display: inline-block; min-width: 16px; padding: 0 4px; margin-right: 4px; border-radius: 3px;
+        background: rgba(255, 255, 255, 0.16); font: 600 11px ui-monospace, monospace; text-align: center;
+      }
+      #help.hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="globe"></div>
+    <div id="status">Loading CesiumJS…</div>
+    <div id="hud" class="panel"></div>
+    <div id="banner" class="panel" style="opacity: 0"></div>
+    <div id="help" class="panel">
+      <div><kbd>P</kbd>demo ↔ manual · <kbd>V</kbd>camera · <kbd>T</kbd>time ×1/×2/×4 · <kbd>R</kbd>restart · <kbd>H</kbd>hide help</div>
+      <div><kbd>↓</kbd><kbd>↑</kbd>pull / push · <kbd>←</kbd><kbd>→</kbd>roll · <kbd>Q</kbd><kbd>E</kbd>rudder / steering</div>
+      <div><kbd>W</kbd><kbd>S</kbd>throttle · <kbd>A</kbd>afterburner · <kbd>Space</kbd>brakes · <kbd>G</kbd>gear · <kbd>F</kbd>flaps</div>
+      <div><kbd>B</kbd>speed brake · <kbd>O</kbd>weapons bays · <kbd>K</kbd>thrust vectoring · <kbd>C</kbd>canopy (stopped)</div>
+    </div>
+    <script type="module" src="/src/flight/main.js"></script>
+  </body>
+</html>
