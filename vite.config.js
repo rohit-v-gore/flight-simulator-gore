@@ -9,7 +9,7 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1000,
     rolldownOptions: {
-      input: { game: page('index.html'), hangar: page('hangar.html'), flight: page('flight.html') },
+      input: { game: page('index.html'), hangar: page('hangar.html'), flight: page('flight.html'), preview: page('aircraft-preview.html') },
     },
   },
 });
