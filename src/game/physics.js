@@ -186,6 +186,7 @@ export const AIRFRAMES = {
     climbFt: 30,
     cruiseThrottle: 0.55,
     maxAglFt: 50,
+    heightHold: true, // flight computer holds height over the water when the stick is centred
   },
 };
 
@@ -289,7 +290,7 @@ export class GamePhysics {
     let thrust = ac.afterburner && c.afterburner && c.throttle > 0.95 ? ac.thrustMax : dry;
     thrust *= Math.max(ac.lapseFloor, (airDensity(this.pos.y) / 1.225) ** ac.lapseExp);
     // a WIG craft is certified to stay in ground effect: power is limited above its height band
-    if (ac.maxAglFt) thrust *= 1 - 0.75 * sstep(ac.maxAglFt * 0.3048, ac.maxAglFt * 0.3048 * 2, agl);
+    if (ac.maxAglFt) thrust *= 1 - 0.5 * sstep(ac.maxAglFt * 0.3048, ac.maxAglFt * 0.3048 * 3, agl);
     return thrust;
   }
 
@@ -381,7 +382,8 @@ export class GamePhysics {
       if (surface === 'rough' && s.groundSpeed > 25) return this.crash('Ran off onto rough ground');
     }
     if (this.hitObstacle()) return;
-    if (lift > ac.mass * G * 1.02 && s.noseUp > Math.min(4 * D2R, ac.maxNoseUp * 0.5)) {
+    const minNose = ac.amphibious ? 1.5 * D2R : Math.min(4 * D2R, ac.maxNoseUp * 0.5);
+    if (lift > ac.mass * G * 1.02 && s.noseUp > minNose) {
       s.onGround = false;
       s.onWater = false;
       this.vel.copy(dir).multiplyScalar(V);
@@ -415,7 +417,15 @@ export class GamePhysics {
     const gamma = Math.asin(clamp(xw.y, -1, 1));
     const turnComp = Math.abs(s.bank) < 75 * D2R ? clamp(1 / Math.cos(s.bank), 1, 2.5) : 1;
     const neutral = Math.cos(gamma) * turnComp;
-    const nzCmd = c.pitch >= 0 ? neutral + c.pitch * (ac.nMax - neutral) : neutral + c.pitch * (neutral - ac.nMin);
+    let nzCmd = c.pitch >= 0 ? neutral + c.pitch * (ac.nMax - neutral) : neutral + c.pitch * (neutral - ac.nMin);
+    // seaglider: with the stick centred, hold the height it was released at (kept within 10-40 ft)
+    if (ac.heightHold) {
+      if (Math.abs(c.pitch) > 0.05 || s.holdAgl == null) s.holdAgl = clamp(agl, 3, 12);
+      if (Math.abs(c.pitch) <= 0.05) {
+        const vsWant = clamp((s.holdAgl - agl) * 0.6, -2, 2);
+        nzCmd = clamp(neutral + (vsWant - this.vel.y) * 0.25, 0.3, 1.8);
+      }
+    }
     const weight = ac.mass * G;
     const thrust = this.thrustNow(agl);
     s.thrust = thrust;

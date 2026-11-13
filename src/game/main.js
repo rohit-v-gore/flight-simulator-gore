@@ -527,6 +527,19 @@ let state = 'menu';
 let mission = null;
 let tutorial = null;
 const choice = { aircraft: 'f22', mode: 'tutorial', from: null, to: null };
+try {
+  Object.assign(choice, JSON.parse(localStorage.getItem('unitedCoast.choice') || '{}'));
+  if (!AIRCRAFT[choice.aircraft]) choice.aircraft = 'f22';
+} catch {
+  /* storage unavailable: use the defaults */
+}
+const saveChoice = () => {
+  try {
+    localStorage.setItem('unitedCoast.choice', JSON.stringify(choice));
+  } catch {
+    /* ignore */
+  }
+};
 
 /** Departure / destination options for the chosen aircraft: runway ends, or docks for the seaglider. */
 function placesFor(id) {
@@ -748,7 +761,10 @@ $('from').addEventListener('change', (e) => {
   renderMenu();
 });
 $('to').addEventListener('change', (e) => (choice.to = e.target.value));
-$('go').addEventListener('click', () => startMission({ ...choice }));
+$('go').addEventListener('click', () => {
+  saveChoice();
+  startMission({ ...choice });
+});
 $('resume').addEventListener('click', () => setState('flying'));
 $('restart').addEventListener('click', () => startMission(mission.setup));
 for (const btn of document.querySelectorAll('[data-menu]')) btn.addEventListener('click', () => {
@@ -814,6 +830,7 @@ function frame(now) {
       sun.shadow.camera.updateProjectionMatrix();
     }
   }
+  sky.position.copy(camera.position); // the sky dome travels with the viewer
   renderer.render(scene, camera);
   drawHud();
   if (physics && (state === 'flying' || state === 'paused')) {
