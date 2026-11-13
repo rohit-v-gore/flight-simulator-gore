@@ -153,10 +153,61 @@ function setView(name, instant = false) {
   }
 }
 
-/* ---------------------------------- panel ---------------------------------- */
-
 const S = jet.state;
 const P = jet.pos;
+
+/* ------------------------------ ground roll ------------------------------ */
+
+/*
+ * At the air base the jet can taxi and take off: thrust minus rolling friction, drag and brakes sets its
+ * speed, the rudder pedals steer the nosewheel, and pulling back above rotation speed lifts it into the
+ * flight scene. It starts parked with the parking brake set.
+ */
+const ROLL = {
+  rotateSpeed: 72, // m/s (~140 kt)
+  wheelbase: 7.5, // nose to main gear, m
+  dryAccel: 6.5, // m/s² at military power
+  burnerAccel: 4.5, // extra m/s² in full afterburner
+  rolling: 0.25, // rolling friction, m/s²
+  dragK: 0.00035, // aerodynamic drag, (m/s²) per (m/s)²
+  brakeDecel: 6, // wheel brakes, m/s²
+};
+const roll = { speed: 0, heading: 0, x: 0, z: 0, parkingBrake: true };
+
+function parkAtStand() {
+  Object.assign(roll, { speed: 0, heading: 0, x: 0, z: 0, parkingBrake: true });
+  jet.root.position.set(0, 0, 0);
+}
+
+function groundRoll(dt) {
+  const thrust = ROLL.dryAccel * THREE.MathUtils.clamp((P.throttle - 0.18) / 0.82, 0, 1) + ROLL.burnerAccel * P.ab;
+  const braking = roll.parkingBrake || held.has(' ') ? ROLL.brakeDecel : 0;
+  const resist = (roll.speed > 0.01 ? ROLL.rolling : 0) + ROLL.dragK * roll.speed * roll.speed + braking;
+  roll.speed = Math.max(0, roll.speed + (thrust - resist) * dt);
+  if (roll.parkingBrake && thrust < ROLL.brakeDecel) roll.speed = 0;
+  // nosewheel steering: full 40° at taxi speed, washing out as speed builds
+  const steer = THREE.MathUtils.degToRad(40) * S.yaw * THREE.MathUtils.clamp(1 - roll.speed / 40, 0.08, 1);
+  roll.heading -= (roll.speed * Math.tan(steer) / ROLL.wheelbase) * dt; // left pedal (yaw < 0) turns left
+  const before = jet.root.position.clone();
+  roll.x += Math.cos(roll.heading) * roll.speed * dt;
+  roll.z -= Math.sin(roll.heading) * roll.speed * dt;
+  jet.root.position.set(roll.x, 0, roll.z);
+  jet.root.rotation.set(0, roll.heading, 0);
+  // keep the camera with the jet
+  const moved = jet.root.position.clone().sub(before);
+  camera.position.add(moved);
+  controls.target.add(moved);
+  S.mach = Math.max(0, roll.speed / 340);
+  // rotation and lift-off
+  if (roll.speed > ROLL.rotateSpeed && S.pitch > 0.25) {
+    const speed = roll.speed;
+    setEnvironment('flight');
+    S.mach = Math.max(0.3, speed / 340);
+  }
+}
+
+/* ---------------------------------- panel ---------------------------------- */
+
 const gui = new GUI({ title: 'F-22 Raptor' });
 {
   const f = gui.addFolder('Flight');
@@ -188,6 +239,8 @@ const gui = new GUI({ title: 'F-22 Raptor' });
   f.add(S, 'throttle', 0, 1, 0.01).name('Throttle (MIL = 1)').listen();
   f.add(S, 'afterburner', 0, 1, 0.01).name('Afterburner').listen();
   f.add(S, 'lights').name('Lights').listen();
+  f.add(roll, 'parkingBrake').name('Parking brake').listen();
+  f.add({ park: () => setEnvironment('apron') }, 'park').name('Back to parking spot');
 }
 {
   const f = gui.addFolder('Appearance');
@@ -219,12 +272,18 @@ function setEnvironment(env) {
   scene.fog.near = flying ? 6000 : 2500;
   scene.fog.far = flying ? 42000 : 14000;
   controls.maxPolarAngle = flying ? Math.PI : Math.PI * 0.49;
+  // the jet sits at the origin in both scenes; bring the camera along
+  const offset = jet.root.position.clone();
+  camera.position.sub(offset);
+  controls.target.sub(offset);
+  parkAtStand();
+  if (!flying) jet.root.rotation.set(0, 0, 0);
   if (flying) {
     Object.assign(S, { gearDown: false, hookDown: false, canopyOpen: false, flaps: 'up' });
     S.mach = Math.max(S.mach, 0.8);
   } else {
-    Object.assign(S, { gearDown: true, afterburner: 0 });
-    S.mach = Math.min(S.mach, 0.4);
+    Object.assign(S, { gearDown: true, afterburner: 0, throttle: 0.3 });
+    S.mach = 0;
   }
   updateSun();
 }
@@ -310,6 +369,9 @@ function updateReadout() {
     ['Engines', `${(P.throttle * 100).toFixed(0)}%${P.ab > 0.01 ? ` + AB ${(P.ab * 100).toFixed(0)}%` : ''}`, 'SB', P.speedBrake > 0.5 ? 'OUT' : 'IN'],
   ];
   const html = rows.map(([k1, v1, k2, v2]) => `<b>${k1}</b> ${v1}${k2 ? ` <b>${k2}</b>` : ''} ${v2}`);
+  if (view.environment !== 'flight') {
+    html.push(`<b>Ground speed</b> ${(roll.speed * 1.944).toFixed(0)} kt ${roll.parkingBrake ? '<span class="warn">PARKING BRAKE (P)</span>' : held.has(' ') ? '<span class="warn">BRAKES</span>' : ''}`);
+  }
   for (const note of jet.info.notes) html.push(`<span class="warn">${note}</span>`);
   readout.innerHTML = html.join('<br>');
 }
@@ -319,6 +381,13 @@ function updateReadout() {
 const held = new Set();
 const HIGH_LIFT = ['up', 'takeoff', 'landing'];
 const TOGGLES = {
+  p: () => (roll.parkingBrake = !roll.parkingBrake),
+  '=': () => (S.throttle = Math.min(1, S.throttle + 0.1)),
+  '+': () => (S.throttle = Math.min(1, S.throttle + 0.1)),
+  '-': () => {
+    S.throttle = Math.max(0, S.throttle - 0.1);
+    if (S.throttle < 1) S.afterburner = 0;
+  },
   g: () => (S.gearDown = !S.gearDown),
   c: () => (S.canopyOpen = !S.canopyOpen),
   h: () => (S.hookDown = !S.hookDown),
@@ -337,6 +406,7 @@ const TOGGLES = {
 addEventListener('keydown', (e) => {
   if (/INPUT|SELECT|TEXTAREA/.test(e.target?.tagName || '')) return;
   const k = e.key.toLowerCase();
+  if (k === ' ' || k.startsWith('arrow')) e.preventDefault();
   held.add(k);
   if (e.repeat) return;
   if (TOGGLES[k]) TOGGLES[k]();
@@ -382,8 +452,7 @@ function step(dt) {
     jet.root.position.y = 0.25 * Math.sin(time * 0.6);
     jet.root.rotation.set(0.03 * Math.sin(time * 0.45), 0, 0.02 * Math.sin(time * 0.3));
   } else {
-    jet.root.position.y = 0;
-    jet.root.rotation.set(0, 0, 0);
+    groundRoll(dt);
   }
   if (glide) {
     glide.t = Math.min(1, glide.t + dt / 0.9);
