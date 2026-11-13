@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F-22 Raptor · Hangar</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --panel: rgba(10, 16, 24, 0.6);
+        --text: #e6edf3;
+        --accent: #9fd8ff;
+      }
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #8fa6bd;
+        color: var(--text);
+        font: 12px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      canvas { display: block; }
+      .card {
+        position: fixed;
+        background: var(--panel);
+        backdrop-filter: blur(6px);
+        border-radius: 10px;
+        pointer-events: none;
+        user-select: none;
+      }
+      #hud { left: 14px; top: 14px; width: 236px; padding: 10px 12px 12px; }
+      #hud h1 { margin: 0 0 6px; font-size: 14px; font-weight: 650; letter-spacing: 0.05em; }
+      #planform { display: block; width: 220px; height: 180px; margin: 0 auto 6px; }
+      #readout b { color: var(--accent); font-weight: 600; }
+      #readout .dim { color: #9aa7b3; }
+      #readout .warn { color: #ffb36b; }
+      #help { left: 14px; bottom: 12px; padding: 8px 12px; font-size: 11.5px; line-height: 1.65; color: #d5dde5; }
+      kbd {
+        display: inline-block;
+        min-width: 14px;
+        padding: 0 4px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.16);
+        font: 600 11px ui-monospace, monospace;
+        text-align: center;
+      }
+      #loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 15px; letter-spacing: 0.05em; }
+      @media (max-width: 700px) { #help { display: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Building the airframe…</div>
+    <div id="hud" class="card">
+      <h1>F-22 RAPTOR</h1>
+      <canvas id="planform" width="440" height="360"></canvas>
+      <div id="readout"></div>
+    </div>
+    <div id="help" class="card">
+      <kbd>W</kbd> main bay · <kbd>S</kbd> side bays · <kbd>V</kbd> thrust vectoring · <kbd>F</kbd> high lift · <kbd>G</kbd> gear ·
+      <kbd>C</kbd> canopy · <kbd>H</kbd> hook · <kbd>B</kbd> speed brake · <kbd>A</kbd> afterburner<br />
+      <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> stick · <kbd>Q</kbd><kbd>E</kbd> rudder · <kbd>L</kbd> lights ·
+      <kbd>R</kbd> auto-rotate · <kbd>1</kbd>–<kbd>8</kbd> views<br />
+      <kbd>P</kbd> parking brake · <kbd>+</kbd><kbd>-</kbd> throttle · <kbd>Space</kbd> brakes · <kbd>Q</kbd><kbd>E</kbd> steer · <kbd>↓</kbd> rotate at 140 kt to take off · drag to orbit, scroll to zoom
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -10,12 +10,12 @@ import * as THREE from 'three';
 
 /* ------------------------------- noise ------------------------------- */
 
-function hash2(x, y) {
+export function hash2(x, y) {
   const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return s - Math.floor(s);
 }
 
-function vnoise(x, y) {
+export function vnoise(x, y) {
   const xi = Math.floor(x);
   const yi = Math.floor(y);
   const xf = x - xi;
@@ -29,7 +29,7 @@ function vnoise(x, y) {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 
-function fbm(x, y, oct = 5) {
+export function fbm(x, y, oct = 5) {
   let s = 0;
   let amp = 0.5;
   let f = 1;
@@ -60,7 +60,7 @@ function fbmPeriodicX(x, z, period, scale, oct = 6) {
 
 /* ------------------------------ textures ------------------------------ */
 
-function canvasTex(N, draw, repeat, aniso) {
+export function canvasTex(N, draw, repeat, aniso) {
   const c = document.createElement('canvas');
   c.width = c.height = N;
   draw(c.getContext('2d'), N);
@@ -72,7 +72,7 @@ function canvasTex(N, draw, repeat, aniso) {
   return t;
 }
 
-function speckle(ctx, N, n, colors, size, seed) {
+export function speckle(ctx, N, n, colors, size, seed) {
   let s = seed;
   const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   for (let k = 0; k < n; k++) {
@@ -83,7 +83,7 @@ function speckle(ctx, N, n, colors, size, seed) {
   return rnd;
 }
 
-const grassTex = (aniso) =>
+export const grassTex = (aniso) =>
   canvasTex(1024, (ctx, N) => {
     ctx.fillStyle = '#6f7d48';
     ctx.fillRect(0, 0, N, N);
@@ -101,7 +101,7 @@ const grassTex = (aniso) =>
     }
   }, null, aniso);
 
-const asphaltTex = (aniso) =>
+export const asphaltTex = (aniso) =>
   canvasTex(1024, (ctx, N) => {
     ctx.fillStyle = '#3d3e40';
     ctx.fillRect(0, 0, N, N);
@@ -109,7 +109,7 @@ const asphaltTex = (aniso) =>
   }, null, aniso);
 
 /** Apron concrete: 5 m slabs with joints, tie-down rings, tyre marks and stains. */
-function concreteTexture(aniso) {
+export function concreteTexture(aniso) {
   return canvasTex(2048, (ctx, N) => {
     ctx.fillStyle = '#8e8c87';
     ctx.fillRect(0, 0, N, N);
@@ -158,7 +158,7 @@ function concreteTexture(aniso) {
   }, null, aniso);
 }
 
-function glowTex() {
+export function glowTex() {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const ctx = c.getContext('2d');
@@ -171,7 +171,7 @@ function glowTex() {
   return new THREE.CanvasTexture(c);
 }
 
-function textPlane(str, w, h, color = '#f2f2ee') {
+export function textPlane(str, w, h, color = '#f2f2ee') {
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 384;
@@ -192,10 +192,10 @@ function textPlane(str, w, h, color = '#f2f2ee') {
   return m;
 }
 
-const paintMat = (color) =>
+export const paintMat = (color) =>
   new THREE.MeshStandardMaterial({ color, roughness: 0.75, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
 
-function flat(w, d, mat, x, z, y = 0, rot = 0) {
+export function flat(w, d, mat, x, z, y = 0, rot = 0) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
   m.rotation.x = -Math.PI / 2;
   m.rotation.z = rot;
@@ -204,7 +204,7 @@ function flat(w, d, mat, x, z, y = 0, rot = 0) {
   return m;
 }
 
-function box(w, h, d, mat, x, y, z) {
+export function box(w, h, d, mat, x, y, z) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z);
   m.castShadow = m.receiveShadow = true;
@@ -212,7 +212,7 @@ function box(w, h, d, mat, x, y, z) {
 }
 
 /** Hardened aircraft shelter: a concrete arch with an open, door-framed front facing -z. */
-function shelter(mats) {
+export function shelter(mats) {
   const g = new THREE.Group();
   const W = 24;
   const H = 9.5;
@@ -242,7 +242,7 @@ function shelter(mats) {
   return g;
 }
 
-function tower(mats) {
+export function tower(mats) {
   const g = new THREE.Group();
   g.add(box(7, 22, 7, mats.building, 0, 11, 0));
   const cab = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 5.2, 4.2, 8), mats.towerGlass);
@@ -256,7 +256,7 @@ function tower(mats) {
   return g;
 }
 
-function fuelTruck(mats) {
+export function fuelTruck(mats) {
   const g = new THREE.Group();
   g.add(box(2.6, 2.6, 2.5, mats.truckCab, 4.2, 1.7, 0));
   const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 7, 24), mats.truck);
@@ -276,7 +276,7 @@ function fuelTruck(mats) {
   return g;
 }
 
-function tug(mats) {
+export function tug(mats) {
   const g = new THREE.Group();
   g.add(box(3.4, 1.1, 2.2, mats.tugBody, 0, 0.85, 0));
   g.add(box(1.2, 1.0, 1.6, mats.metalDark, -0.6, 1.9, 0));
@@ -291,7 +291,7 @@ function tug(mats) {
   return g;
 }
 
-function lightPole(mats) {
+export function lightPole(mats) {
   const g = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 22, 10), mats.metal);
   pole.position.y = 11;
@@ -301,7 +301,7 @@ function lightPole(mats) {
   return g;
 }
 
-function windsock(mats) {
+export function windsock(mats) {
   const g = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 7, 8), mats.metal);
   pole.position.y = 3.5;

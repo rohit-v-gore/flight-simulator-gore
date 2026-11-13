@@ -3,13 +3,13 @@ import { resolve } from 'node:path';
 
 const page = (file) => resolve(import.meta.dirname, file);
 
-// Two pages: the Three.js viewer (index.html) and the CesiumJS flight (flight.html, Cesium from its CDN).
+// Three pages: the flight game (index.html), the hangar viewer (hangar.html) and the CesiumJS globe flight (flight.html).
 export default defineConfig({
   base: './',
   build: {
     chunkSizeWarningLimit: 1000,
     rolldownOptions: {
-      input: { viewer: page('index.html'), flight: page('flight.html') },
+      input: { game: page('index.html'), hangar: page('hangar.html'), flight: page('flight.html') },
     },
   },
 });

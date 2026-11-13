@@ -6,6 +6,32 @@ It is also the visual front end for a planned aerial test and simulation platfor
 
 ![F-22 in flight over a procedural coastline, afterburners lit](docs/hero.jpg)
 
+## Play
+
+`npm run dev`, then open **http://localhost:5173**: the flight game.
+
+- **Tutorial** (start here): 16 interactive steps. Release the brake, throttle up, light the burner, rotate at 140 kt, gear and flaps up, climb, level off, turn to Lakeside Field, configure for landing, read the PAPI lights, flare, touch down and brake to a stop. Each step waits until you've actually done it.
+- **Free flight**: lined up on runway 09 at Raptor AFB; fly anywhere and land at either airport.
+- **Landing challenge**: start 5 nm out on final to Lakeside Field and get scored on the touchdown.
+
+The world is 80 × 80 km of terrain and coast with two airports. Each runway has markings, edge and approach lights, and PAPI glide-slope lights that change colour with your angle. The game shows a green HUD (pitch ladder, flight-path marker, speed, altitude, heading, vertical speed, G) and draws synthetic runway outlines to help you find the field. You also get a status panel, a map with your waypoint, on-screen controls (H hides them) and a pause menu with every key (Esc).
+
+The flight model is fly-by-wire like the real jet: ↓/↑ ask for G, so a centred stick holds your flight path, and ←/→ roll and hold the bank. On the ground there's thrust, friction, brakes and nose-wheel steering, and the gear is locked down by weight on wheels. Touchdowns are graded Butter, Smooth or Firm. Gear up, too much sink, wings not level, nose first, water or rough ground means a crash.
+
+| Key | Action |
+| --- | --- |
+| `↓` `↑` | Pull / push (G) |
+| `←` `→` | Roll |
+| `A` `D` | Rudder / nose-wheel steering |
+| `W` `S` | Throttle up / down |
+| `X` | Afterburner |
+| `Space` · `P` | Wheel brakes (hold) · parking brake |
+| `G` · `F` / `Shift+F` · `B` | Gear · flaps down / up · speed brake |
+| `O` · `K` · `C` | Weapons bays · thrust vectoring · canopy (stopped) |
+| `V` · `R` · `H` · `Esc` | Camera (chase / cockpit / orbit) · restart · hide controls · pause |
+
+Other pages: **hangar.html** to inspect the jet and its systems up close, **flight.html** for the CesiumJS demo sortie over real Edwards AFB terrain.
+
 ## What's in it
 
 **The aircraft**
@@ -16,7 +42,7 @@ It is also the visual front end for a planned aerial test and simulation platfor
 - **Control mixing and interlocks:** speed brake as a surface mix (ailerons up, flaperons down, rudders toed out); high lift retracts above Mach 0.6; with weight on wheels the gear handle is locked down.
 - Paint: two-tone grey camouflage or plain test-fleet grey, painted procedurally onto a texture atlas and projected onto the airframe.
 
-**The world** (viewer)
+**The hangar** (hangar.html)
 - An air base: runway with markings and edge lights, taxiway, aircraft shelters, control tower, ground vehicles, more parked Raptors, trees and hills.
 - In flight: procedural terrain, coastline and clouds that stream past at the jet's speed.
 
@@ -38,7 +64,7 @@ Needs Node.js 20.19+ (or 22.12+) and a WebGL 2 browser.
 
 ```bash
 npm install
-npm run dev          # viewer: http://localhost:5173  ·  flight: http://localhost:5173/flight.html
+npm run dev          # game: http://localhost:5173 · hangar: /hangar.html · globe flight: /flight.html
 npm run build        # production build in dist/
 ```
 
@@ -90,7 +116,8 @@ First steps: put the sim behind a state stream (WebSocket) that the viewers cons
 ## Project layout
 
 ```
-index.html, src/main.js     viewer: scene, light, panel, HUD, keyboard, demos
+index.html, src/game/       the flight game: physics, world (terrain, airports, PAPI), HUD, missions, tutorial
+hangar.html, src/main.js    hangar viewer: scene, light, panel, HUD, keyboard, demos
 src/world/world.js          air base, flight terrain, clouds
 src/f22/
   F22.js                    assembly, commands → actuators, control mixing, interlocks
