@@ -151,11 +151,27 @@ The panel on the right has everything else: Mach, demos (control exerciser, post
 
 ## System design
 
+**The full write-up is in [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md).** It covers requirements, architecture, the frame loop, the physics step, the Sim Lab data flow and contracts, design trade-offs, extension points and the roadmap.
+
 ### How it works today
 
-<p align="center"><img src="docs/diagrams/today.png" width="900" alt="Procedural model modules feed F22.js, which drives the Three.js viewer and a GLB export animated in Cesium by a point-mass flight model and demo autopilot" /></p>
+```mermaid
+flowchart LR
+  IN["Pilot<br/>keyboard (browser)<br/>or TestPilot (Node)"] --> PHY["GamePhysics<br/>120 Hz point mass<br/>ISA · wind · engines"]
+  AF[("AIRFRAMES")] --> PHY
+  W["gameWorld.js<br/>United Coast"] -->|"height · runway · water queries"| PHY
+  SC["scenario.js<br/>conditions · test cards"] -->|"prepareRun"| PHY
+  PHY -->|"state + events"| REC["recorder.js<br/>28 ch @ 10 Hz"]
+  REC --> RUN["ScenarioRun<br/>metrics → criteria → verdict"]
+  RUN --> OUT["Debrief · charts<br/>CSV · JSON · scenario link"]
+  PHY -->|"pose"| R["three.js renderer<br/>aircraft models · HUD"]
+  W --> R
+```
 
-- **One model, two front ends.** `src/f22` builds the aircraft; `F22.js` turns commands (stick, throttle, switches) into actuator positions at realistic rates, with control mixing and interlocks. The viewer renders it directly; the flight page exports it to glTF and animates the same parts.
+- **The simulation core runs in two places.** The physics, scenarios, recorder and grading are plain JavaScript with no browser dependencies. The browser game and the `npm run sim` batch runner use the same files, so a scenario flown by hand can be re-run in batch with the same results.
+- **Scenarios are data.** A scenario is a small JSON object you can save to a file or share as a `?scenario=` link. Test cards declare a start state, an end condition and pass/fail criteria.
+- **Physics is fixed-step.** It runs at 120 Hz behind an accumulator, so results don't depend on the frame rate.
+- **The F-22 pages (`hangar.html`, `flight.html`) predate the game.** `src/f22` builds the aircraft, and `F22.js` turns commands into actuator positions with control mixing and interlocks. The hangar viewer renders it directly; the Cesium page exports it to glTF and animates the same parts.
 - **Physics is a point-mass model:** it includes standard atmosphere, temperature deviation, wind and gusts, transonic wave drag, ground effect, thrust lapse and ram recovery, and engine failures. It gives credible trends and comparisons, such as how much takeoff distance grows with weight or how energy use changes with drag. It is not certified engineering data.
 
 ### Toward an aerial test and simulation platform
