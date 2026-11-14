@@ -3,6 +3,10 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { GamePhysics, AIRFRAMES } from './physics.js';
 import { buildGameWorld } from './gameWorld.js';
 import { buildTutorial } from './tutorial.js';
+import {
+  placesFor, placeAt, prepareRun, ScenarioRun, cardsFor, cardById, cardConditions, CONDITION_FIELDS, DEFAULT_CONDITIONS,
+  normaliseConditions, describeConditions, encodeScenario, decodeScenario, parseScenario,
+} from '../sim/scenario.js';
 
 /*
  * Flight scenario game: choose an aircraft, a scenario and a route, then fly it.
@@ -71,6 +75,7 @@ const world = buildGameWorld(renderer);
 scene.add(world.group);
 const ends = world.ends;
 const docks = world.spawns.docks;
+world.docks = docks; // scenario helpers read world.ends / world.docks
 $('loading').remove();
 
 const models = {}; // loaded aircraft by id
@@ -374,7 +379,7 @@ function drawHud() {
   }
 
   // speed (left) and altitude (right) boxes
-  const kts = physics.speed * KT;
+  const kts = physics.airspeed * KT;
   const alt = physics.altitude * FT;
   const box = (x, text, label) => {
     g.textAlign = 'center';
@@ -384,12 +389,19 @@ function drawHud() {
     g.font = `${12 * u}px ui-monospace, Menlo, monospace`;
     g.fillText(label, x, cy + 34 * u);
   };
-  box(cx - W * 0.22, kts.toFixed(0), 'KNOTS');
+  box(cx - W * 0.22, kts.toFixed(0), 'KIAS');
   box(cx + W * 0.22, alt.toFixed(0), 'FEET');
   g.font = `${13 * u}px ui-monospace, Menlo, monospace`;
   g.textAlign = 'center';
   g.fillText(`M ${physics.s.mach.toFixed(2)}   ${physics.s.nz.toFixed(1)} G`, cx - W * 0.22, cy + 54 * u);
   g.fillText(`VS ${((physics.s.vs || 0) * FT * 60).toFixed(0)} fpm`, cx + W * 0.22, cy + 54 * u);
+  g.fillText(`GS ${(Math.hypot(physics.vel.x, physics.vel.z) * KT).toFixed(0)}`, cx - W * 0.22, cy + 72 * u);
+  if (physics.failed.engines) {
+    g.fillStyle = 'rgba(255,90,70,0.95)';
+    g.font = `bold ${20 * u}px system-ui, sans-serif`;
+    g.fillText(`ENGINE FAIL ×${physics.failed.engines}`, cx, H * 0.3);
+    g.fillStyle = green;
+  }
   // heading
   g.font = `bold ${18 * u}px ui-monospace, Menlo, monospace`;
   g.fillText(`${String(Math.round(physics.headingDeg) % 360).padStart(3, '0')}°`, cx, H * 0.1);
@@ -421,6 +433,7 @@ function updateStatus() {
     `<div>${flag(cfg.gearDown, `${gearWord} ${cfg.gearDown ? 'DN' : 'UP'}`)} ${flag(cfg.flaps !== 'up', `FLAPS ${cfg.flaps.toUpperCase()}`)} ${flag(cfg.speedBrake, 'SPD BRK', 'warn')}</div>`,
     `<div>${ac.amphibious ? '' : flag(c.parkingBrake, 'PARK BRK', 'warn')} ${flag(c.brakes, ac.amphibious ? 'REVERSE' : 'BRAKES', 'warn')} ${physics.type === 'f22' ? flag(cfg.bays, 'BAYS', 'warn') + flag(cfg.vectoring, 'TV') : ''}</div>`,
     `<div class="dim">AoA ${(s.alpha / D2R).toFixed(0)}° · M ${s.mach.toFixed(2)} · ${where}${s.runway ? ` · ${s.runway.name}` : ''}</div>`,
+    `<div class="dim">${physics.env.windKt || physics.env.gustKt ? `WIND ${String(physics.env.windFrom).padStart(3, '0')}°/${physics.env.windKt} kt${physics.env.gustKt ? ` G±${physics.env.gustKt}` : ''} · ` : ''}${physics.env.isaDevC ? `ISA${physics.env.isaDevC > 0 ? '+' : ''}${physics.env.isaDevC} · ` : ''}${ac.electric ? `${s.energyKWh.toFixed(1)} kWh` : `${Math.round(s.fuelKg).toLocaleString()} kg fuel`}${physics.failed.engines ? ` · <span class="flag warn">ENG FAIL ×${physics.failed.engines}</span>` : ''}${run && run.status === 'running' ? ' · <span class="flag on">REC</span>' : ''}</div>`,
   ].join('');
 }
 
@@ -526,13 +539,20 @@ function showWaypoint(target, label) {
 let state = 'menu';
 let mission = null;
 let tutorial = null;
-const choice = { aircraft: 'f22', mode: 'tutorial', from: null, to: null };
+let run = null; // ScenarioRun: flight data recorder + test-card grading for the current flight
+let lastReport = null;
+const choice = { aircraft: 'f22', mode: 'tutorial', from: null, to: null, card: 'takeoff', cond: { ...DEFAULT_CONDITIONS } };
 try {
   Object.assign(choice, JSON.parse(localStorage.getItem('unitedCoast.choice') || '{}'));
   if (!AIRCRAFT[choice.aircraft]) choice.aircraft = 'f22';
 } catch {
   /* storage unavailable: use the defaults */
 }
+choice.cond = normaliseConditions(choice.cond);
+// a shared scenario link (?scenario=...) takes precedence over the remembered choice
+const linked = new URLSearchParams(location.search).get('scenario');
+const linkedScenario = linked ? decodeScenario(linked) : null;
+if (linkedScenario) Object.assign(choice, linkedScenario);
 const saveChoice = () => {
   try {
     localStorage.setItem('unitedCoast.choice', JSON.stringify(choice));
@@ -541,101 +561,70 @@ const saveChoice = () => {
   }
 };
 
-/** Departure / destination options for the chosen aircraft: runway ends, or docks for the seaglider. */
-function placesFor(id) {
-  if (AIRFRAMES[id].amphibious) {
-    return docks.map((d) => ({ key: `dock:${d.city.code}`, label: `${d.city.name} waterfront`, dock: d }));
-  }
-  return ends.map((e) => ({ key: `rwy:${e.airport.city.code}:${e.number}`, label: `${e.airport.city.name} (${e.airport.city.code}) · runway ${e.number}`, end: e }));
-}
-
-function destinationInfo(place) {
-  if (place.end) {
-    const e = place.end;
-    return {
-      name: `${e.airport.city.name} RWY ${e.number}`,
-      gate: e.gate.clone(),
-      touchdown: new THREE.Vector3(e.touchdown.x, e.airport.elev, e.touchdown.y),
-      end: e,
-    };
-  }
-  // seaglider: a landing area 4 km off the dock, approached along the dock's heading
-  const d = place.dock;
-  const back = 4000;
-  const gate = new THREE.Vector3(d.x - Math.cos(d.heading) * back, 9, d.z + Math.sin(d.heading) * back);
-  return { name: d.name, gate, touchdown: new THREE.Vector3(d.x, 0, d.z), dock: d };
-}
-
 async function startMission(setup) {
   setState('loading');
   await useAircraft(setup.aircraft);
+  const prep = prepareRun(physics, world, setup);
+  const { card, cond, ctx } = prep;
   const ac = physics.ac;
-  const places = placesFor(setup.aircraft);
-  const from = places.find((p) => p.key === setup.from) || places[0];
-  const to = places.find((p) => p.key === setup.to) || places.find((p) => p.key !== from.key);
-  const dest = destinationInfo(to);
-  mission = { setup, kind: setup.mode, landed: null, target: null, label: '', dest, ac };
+  const dest = ctx.dest;
+  setup = { ...setup, cond };
+  mission = { setup, kind: setup.mode, card, landed: null, target: null, label: '', dest, ac };
   tutorial = null;
   canopyOpen = false;
   physics.events.length = 0;
   camMode = 'chase';
-  if (setup.mode === 'landing') {
-    if (ac.amphibious) {
-      const d = dest.dock;
-      const start = new THREE.Vector3(d.x - Math.cos(d.heading) * 7000, 9, d.z + Math.sin(d.heading) * 7000);
-      physics.startAirborne({ x: start.x, y: start.y, z: start.z, heading: d.heading, speed: 40, gearDown: false, flaps: 'takeoff', throttle: 0.55 });
+  run = new ScenarioRun({ physics, setup, card, ctx, cond });
+  const condNote = describeConditions(cond);
+  const condLine = condNote.startsWith('standard') ? '' : `<br><span class="subtle">Conditions: ${condNote}</span>`;
+  if (card) {
+    if (card.start === 'final') {
       mission.target = dest.touchdown.clone();
-      setObjective(`Landing challenge: ${ac.name}`, `Settle onto the water near <b>${dest.name}</b> with the wings level and a gentle sink, then slow to a stop (<kbd>Space</kbd>).`);
-    } else {
-      const g = dest.gate;
-      physics.startAirborne({ x: g.x, y: g.y, z: g.z, heading: dest.end.heading, speed: ac.vApproachKt / KT * 1.05, gearDown: true, flaps: 'landing', throttle: 0.3, path: -3 });
-      tuneApproachThrottle();
-      mission.target = dest.touchdown.clone();
-      setObjective(`Landing challenge: ${ac.name}`, `Follow the PAPI (2 white, 2 red) down to <b>${dest.name}</b>. Gear and flaps are down; hold about ${ac.vApproachKt} kt. Flare, touch down, then hold <kbd>Space</kbd>.`);
+      mission.label = `Land: ${dest.name}`;
     }
+    setObjective(`Test card: ${card.name}`, `${card.summary}<br><span class="subtle">Pilot: ${card.pilot} Esc → <b>End &amp; report</b> to stop early.</span>${condLine}`);
+  } else if (setup.mode === 'landing') {
+    mission.target = dest.touchdown.clone();
     mission.label = `Land: ${dest.name}`;
+    setObjective(
+      `Landing challenge: ${ac.name}`,
+      ac.amphibious
+        ? `Settle onto the water near <b>${dest.name}</b> with the wings level and a gentle sink, then slow to a stop (<kbd>Space</kbd>).${condLine}`
+        : `Follow the PAPI (2 white, 2 red) down to <b>${dest.name}</b>. Gear and flaps are down; hold about ${ac.vApproachKt} kt. Flare, touch down, then hold <kbd>Space</kbd>.${condLine}`,
+    );
+  } else if (setup.mode === 'tutorial') {
+    tutorial = makeTutorial(ac, { depName: ctx.departure.label, dest });
   } else {
-    placeAt(from);
-    if (setup.mode === 'tutorial') {
-      tutorial = makeTutorial(ac, { depName: from.label, dest });
-    } else {
-      mission.target = ac.amphibious ? dest.gate : dest.gate;
-      mission.label = `To ${dest.name}`;
-      setObjective(`Free flight: ${ac.name}`, `From <b>${from.label}</b>. Fly anywhere and ${ac.amphibious ? 'land on any water' : 'land at any airport'}. The green ring marks the route to <b>${dest.name}</b>.`);
-    }
+    mission.target = dest.gate;
+    mission.label = `To ${dest.name}`;
+    setObjective(`Free flight: ${ac.name}`, `From <b>${ctx.departure.label}</b>. Fly anywhere and ${ac.amphibious ? 'land on any water' : 'land at any airport'}. The green ring marks the route to <b>${dest.name}</b>. Every flight is recorded: Esc → <b>End &amp; report</b> for the data.${condLine}`);
   }
+  if (run.criteria.length) $('objective').insertAdjacentHTML('beforeend', '<div id="livecrit"></div>');
   setState('flying');
   physics.step(0);
   syncModel(0);
   updateCamera(0, true);
 }
 
-/** Pick the throttle that holds speed on the 3° glide path for the landing challenge. */
-function tuneApproachThrottle() {
-  const ac = physics.ac;
-  const V = ac.vApproachKt / KT;
-  let lo = 0;
-  let hi = 1;
-  for (let i = 0; i < 18; i++) {
-    const t = (lo + hi) / 2;
-    physics.controls.throttle = t;
-    const cl = (ac.mass * 9.80665 * Math.cos(3 * D2R)) / (0.5 * 1.2 * V * V * ac.wingArea);
-    const drag = 0.5 * 1.2 * V * V * ac.wingArea * physics.dragCoefficient(cl);
-    const need = drag - ac.mass * 9.80665 * Math.sin(3 * D2R);
-    if (physics.thrustNow(500) > need) hi = t;
-    else lo = t;
-  }
-  physics.controls.throttle = (lo + hi) / 2;
-}
-
-function placeAt(place) {
-  if (place.end) {
-    const e = place.end;
-    const along = 120;
-    physics.reset({ x: e.threshold.x + Math.cos(e.heading) * along, z: e.threshold.y - Math.sin(e.heading) * along, heading: e.heading });
-  } else {
-    physics.reset({ x: place.dock.x, z: place.dock.z, heading: place.dock.heading });
-  }
+/** Live checklist of the test card's criteria (re-evaluated twice a second). */
+function updateLiveCriteria() {
+  const el = $('livecrit');
+  if (!el || !run) return;
+  const now = performance.now();
+  if (now - (updateLiveCriteria.t || 0) < 500) return;
+  updateLiveCriteria.t = now;
+  const m = run.rec.summary();
+  el.innerHTML = run.criteria
+    .map((c) => {
+      let r = { ok: false, value: '' };
+      try {
+        r = c.test(m, run.rec, run);
+      } catch {
+        /* not measurable yet */
+      }
+      return `<div class="${r.ok ? 'ok' : ''}">${r.ok ? '✔' : '○'} ${c.label}${r.value && r.value !== '—' ? ` <span class="subtle">(${r.value})</span>` : ''}</div>`;
+    })
+    .join('');
 }
 
 function setObjective(title, html, progress = '') {
@@ -658,7 +647,7 @@ function makeTutorial(ac, info) {
   show();
   const next = () => {
     i++;
-    if (i >= steps.length) return finish('Tutorial complete', `You can fly the ${ac.name}. Try Free flight or the Landing challenge next, or pick another aircraft.`, true);
+    if (i >= steps.length) return finish('Tutorial complete', `You can fly the ${ac.name}. Try Free flight, the Landing challenge or a Test card next, or pick another aircraft.`, true, 'complete');
     show();
   };
   return {
@@ -684,22 +673,277 @@ function handleEvents() {
       toast(`${ev.quality} touchdown on ${where}: ${(ev.sink * FT * 60).toFixed(0)} fpm`, 4);
       if (mission) mission.landed = { ...ev, where };
     }
-    if (ev.type === 'crash') finish('Crashed', ev.reason, false);
+    if (ev.type === 'crash' && state === 'flying') finish('Crashed', ev.reason, false);
   }
-  if (mission?.landed && physics.s.onGround && physics.speed < 1.5 && mission.kind !== 'tutorial') {
+  if (mission?.landed && physics.s.onGround && physics.speed < 1.5 && mission.kind !== 'tutorial' && mission.kind !== 'test' && state === 'flying') {
     const ev = mission.landed;
     const ac = physics.ac;
     const score = Math.max(0, Math.round(1000 - (ev.sink / ac.maxTouchdownVS) * 500 - Math.max(0, ev.speed * KT - (ac.vApproachKt + 10)) * 6));
-    finish('Landed!', `${ev.quality} touchdown on ${ev.where} at ${(ev.speed * KT).toFixed(0)} kt, ${(ev.sink * FT * 60).toFixed(0)} fpm sink. Score: <b>${score}</b>`, true);
+    finish('Landed!', `${ev.quality} touchdown on ${ev.where} at ${(ev.speed * KT).toFixed(0)} kt, ${(ev.sink * FT * 60).toFixed(0)} fpm sink. Score: <b>${score}</b>`, true, 'complete');
   }
 }
 
-function finish(title, text, good) {
+function finish(title, text, good, runStatus = 'ended') {
   if (!good) camMode = 'chase';
+  if (run?.status === 'running') run.finish(runStatus, runStatus === 'ended' ? 'Ended by the pilot' : title);
   setState('debrief');
   $('debrief-title').textContent = title;
   $('debrief-title').className = good ? 'good' : 'bad';
   $('debrief-text').innerHTML = text;
+  renderReport();
+}
+
+/** The run's card is complete: grade it. */
+function finishTestCard() {
+  const rep = run.report();
+  finish(`${mission.card.name}: ${rep.result.verdict}`, '', rep.result.verdict === 'PASS', 'complete');
+}
+
+/* --------------------------------- engineering report --------------------------------- */
+
+/** Report metric labels: key → [label, unit, lower is better?]. */
+const METRICS = {
+  ground_roll_m: ['Ground roll', 'm', true],
+  takeoff_distance_35ft_m: ['Takeoff distance (35 ft)', 'm', true],
+  liftoff_ias_kt: ['Liftoff speed', 'kt'],
+  liftoff_time_s: ['Brake release to liftoff', 's', true],
+  time_to_1000ft_agl_s: ['Time to 1,000 ft AGL', 's', true],
+  max_track_deviation_deg: ['Max track deviation', '°', true],
+  touchdown_sink_fpm: ['Touchdown sink rate', 'fpm', true],
+  touchdown_ias_kt: ['Touchdown speed', 'kt'],
+  touchdown_crab_deg: ['Crab at touchdown', '°'],
+  touchdown_past_threshold_m: ['Touchdown past threshold', 'm'],
+  touchdown_quality: ['Touchdown', ''],
+  landing_roll_m: ['Landing roll', 'm', true],
+  fuel_kg: ['Fuel burned', 'kg', true],
+  fuel_kg_per_nm: ['Fuel per nm', 'kg/nm', true],
+  energy_kwh: ['Battery energy', 'kWh', true],
+  energy_kwh_per_nm: ['Energy per nm', 'kWh/nm', true],
+  time_in_band_pct: ['Time in height band', '%'],
+  avg_mach_airborne: ['Average Mach', ''],
+  max_mach: ['Max Mach', ''],
+  max_ias_kt: ['Max indicated airspeed', 'kt'],
+  max_alt_ft: ['Max altitude', 'ft'],
+  max_g: ['Max load factor', 'g'],
+  min_g: ['Min load factor', 'g'],
+  max_aoa_deg: ['Max angle of attack', '°'],
+  max_bank_deg: ['Max bank', '°'],
+  supersonic_over_land_s: ['Supersonic over land', 's', true],
+  failure_at_ias_kt: ['Engine failure at', 'kt'],
+  distance_nm: ['Distance flown', 'nm'],
+  flight_time_s: ['Flight time', 's'],
+};
+const runKey = (setup) => `${setup.aircraft}|${setup.mode === 'test' ? setup.card : setup.mode}`;
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem('unitedCoast.runs') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(list) {
+  try {
+    localStorage.setItem('unitedCoast.runs', JSON.stringify(list.slice(0, 30)));
+  } catch {
+    /* ignore */
+  }
+}
+
+function renderReport() {
+  if (!run) return;
+  const rep = run.report();
+  lastReport = rep;
+  const key = runKey(mission.setup);
+  const history = loadHistory();
+  const prev = history.find((h) => h.key === key);
+  const m = rep.metrics;
+  const fmtv = (v) => (typeof v === 'number' ? v.toLocaleString() : v);
+  const metricHtml = Object.entries(METRICS)
+    .filter(([k]) => m[k] != null)
+    .map(([k, [label, unit, lowerBetter]]) => {
+      let delta = '';
+      const pv = prev?.metrics?.[k];
+      if (typeof m[k] === 'number' && typeof pv === 'number' && pv !== m[k]) {
+        const d = m[k] - pv;
+        const better = lowerBetter == null ? null : lowerBetter ? d < 0 : d > 0;
+        delta = `<i title="vs your previous run of this scenario (${pv.toLocaleString()})">${d > 0 ? '+' : ''}${Math.round(d * 100) / 100}${better == null ? '' : better ? ' ▲' : ' ▼'}</i>`;
+      }
+      return `<div class="metric"><span>${label}</span><b>${fmtv(m[k])}</b> ${unit}${delta}</div>`;
+    })
+    .join('');
+  const crit = rep.criteria.length
+    ? `<ul class="crit">${rep.criteria.map((c) => `<li><span class="mark ${c.pass ? 'ok' : 'no'}">${c.pass ? '✔' : '✘'}</span>${c.label}<span class="val">${c.value}</span></li>`).join('')}</ul>`
+    : '';
+  $('report').innerHTML = `
+    <div class="sim-row"><span class="verdict ${rep.result.verdict}">${rep.result.verdict}</span>
+      <span class="subtle">${rep.scenario.airframe} · ${rep.scenario.card ? rep.scenario.card.name : mission.kind} · ${rep.scenario.conditions_text}</span></div>
+    ${crit}
+    <div class="metrics">${metricHtml}</div>
+    ${prev ? `<p class="subtle">Deltas compare with your previous run of this scenario (${new Date(prev.at).toLocaleString()}, ${prev.cond}). ▲ better, ▼ worse.</p>` : ''}
+    <div class="charts">
+      ${CHARTS.map((c, i) => `<div class="chart"><h4>${c.title}</h4><canvas id="chart${i}"></canvas><div class="tip"></div></div>`).join('')}
+    </div>
+    <p class="subtle">${run.rec.samples.length.toLocaleString()} samples at ${run.rec.rate} Hz, ${rep.channels.length} channels. Download the CSV for every channel, or the JSON report for criteria, metrics and the event log.</p>`;
+  const series = run.rec.series(['t', ...CHARTS.map((c) => c.key)]);
+  const marks = run.rec.events.filter((e) => MARKS[e.type]).map((e) => ({ t: e.t, label: MARKS[e.type] }));
+  CHARTS.forEach((c, i) => lineChart($(`chart${i}`), series.t, series[c.key], c, marks));
+  history.unshift({ at: Date.now(), key, aircraft: mission.setup.aircraft, label: rep.scenario.card?.name || mission.kind, verdict: rep.result.verdict, cond: rep.scenario.conditions_text, metrics: m });
+  saveHistory(history);
+}
+
+const CHARTS = [
+  { key: 'alt', title: 'Altitude (ft)', unit: 'ft' },
+  { key: 'ias', title: 'Indicated airspeed (kt)', unit: 'kt' },
+  { key: 'nz', title: 'Load factor (g)', unit: 'g' },
+];
+const MARKS = { liftoff: 'Liftoff', touchdown: 'Touchdown', engine_failure: 'Engine failure', screen_35ft: '35 ft' };
+
+/** Single-series time chart with event markers and a hover crosshair. */
+function lineChart(canvas, t, y, spec, marks) {
+  const box = canvas.parentElement;
+  const tip = box.querySelector('.tip');
+  const dpr = devicePixelRatio || 1;
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const g = canvas.getContext('2d');
+  g.scale(dpr, dpr);
+  if (t.length < 2) {
+    g.fillStyle = '#93a3b2';
+    g.font = '12px system-ui';
+    g.fillText('Not enough data', 10, H / 2);
+    return;
+  }
+  const L = 46;
+  const R = 8;
+  const T = 6;
+  const B = 20;
+  const t0 = t[0];
+  const t1 = t[t.length - 1];
+  let lo = Math.min(...y);
+  let hi = Math.max(...y);
+  if (hi - lo < 1e-6) {
+    hi += 1;
+    lo -= 1;
+  }
+  const pad = (hi - lo) * 0.08;
+  lo = lo >= 0 && lo - pad < 0 ? 0 : lo - pad; // never pad a non-negative quantity below zero
+  hi += pad;
+  const X = (v) => L + ((v - t0) / (t1 - t0 || 1)) * (W - L - R);
+  const Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const nice = (v) => (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? Math.round(v) : v.toFixed(1));
+  const base = () => {
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(160,220,255,0.10)';
+    g.fillStyle = '#93a3b2';
+    g.font = '11px ui-monospace, Menlo, monospace';
+    g.lineWidth = 1;
+    g.textAlign = 'right';
+    for (let i = 0; i <= 3; i++) {
+      const v = lo + ((hi - lo) * i) / 3;
+      g.beginPath();
+      g.moveTo(L, Y(v));
+      g.lineTo(W - R, Y(v));
+      g.stroke();
+      g.fillText(nice(v), L - 6, Y(v) + 4);
+    }
+    g.textAlign = 'center';
+    for (let i = 0; i <= 4; i++) {
+      const v = t0 + ((t1 - t0) * i) / 4;
+      g.textAlign = i === 4 ? 'right' : 'center';
+      g.fillText(`${Math.round(v - t0)} s`, i === 4 ? W - R : X(v), H - 5);
+    }
+    let lastX = -1e9;
+    let row = 0;
+    for (const mk of marks) {
+      if (mk.t < t0 || mk.t > t1) continue;
+      row = X(mk.t) - lastX < 70 ? row + 1 : 0; // stagger labels of nearby events
+      lastX = X(mk.t);
+      g.strokeStyle = 'rgba(232,238,244,0.35)';
+      g.setLineDash([3, 3]);
+      g.beginPath();
+      g.moveTo(X(mk.t), T);
+      g.lineTo(X(mk.t), H - B);
+      g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = '#93a3b2';
+      g.textAlign = 'left';
+      const right = X(mk.t) > W - 80;
+      g.textAlign = right ? 'right' : 'left';
+      g.fillText(mk.label, X(mk.t) + (right ? -3 : 3), T + 10 + row * 12);
+    }
+    g.strokeStyle = '#7fdcff';
+    g.lineWidth = 2;
+    g.lineJoin = 'round';
+    g.beginPath();
+    y.forEach((v, i) => (i ? g.lineTo(X(t[i]), Y(v)) : g.moveTo(X(t[i]), Y(v))));
+    g.stroke();
+  };
+  base();
+  canvas.onmousemove = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const tx = t0 + ((e.clientX - r.left - L) / (W - L - R)) * (t1 - t0);
+    let i = 0;
+    let best = Infinity;
+    for (let k = 0; k < t.length; k++) {
+      const d = Math.abs(t[k] - tx);
+      if (d < best) {
+        best = d;
+        i = k;
+      }
+    }
+    base();
+    g.strokeStyle = 'rgba(232,238,244,0.6)';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(X(t[i]), T);
+    g.lineTo(X(t[i]), H - B);
+    g.stroke();
+    g.fillStyle = '#7fdcff';
+    g.strokeStyle = '#0b1218';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(X(t[i]), Y(y[i]), 4.5, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    tip.style.display = 'block';
+    tip.textContent = `${(t[i] - t0).toFixed(1)} s · ${nice(y[i])} ${spec.unit}`;
+    const x = X(t[i]) + 8;
+    tip.style.left = `${Math.min(x, W - tip.offsetWidth - 4) + 8}px`;
+    tip.style.top = '24px';
+  };
+  canvas.onmouseleave = () => {
+    base();
+    tip.style.display = 'none';
+  };
+}
+
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+const fileStem = (setup) => `${setup.aircraft}-${setup.mode === 'test' ? setup.card : setup.mode}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}`;
+const scenarioOf = (setup) => ({ v: 1, aircraft: setup.aircraft, mode: setup.mode, card: setup.card || null, from: setup.from || null, to: setup.to || null, cond: setup.cond });
+const scenarioLink = (setup) => `${location.origin}${location.pathname}?scenario=${encodeScenario(setup)}`;
+
+async function copyLink(setup) {
+  const link = scenarioLink(setup);
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('Scenario link copied');
+  } catch {
+    prompt('Scenario link', link);
+  }
 }
 
 function setState(s) {
@@ -721,41 +965,143 @@ function togglePause() {
 function renderMenu() {
   for (const el of document.querySelectorAll('[data-aircraft]')) el.classList.toggle('selected', el.dataset.aircraft === choice.aircraft);
   for (const el of document.querySelectorAll('[data-mode]')) el.classList.toggle('selected', el.dataset.mode === choice.mode);
-  const places = placesFor(choice.aircraft);
+  // test cards for this aircraft
+  const cards = cardsFor(choice.aircraft);
+  if (!cards.some((c) => c.id === choice.card)) choice.card = cards[0].id;
+  const card = choice.mode === 'test' ? cardById(choice.card) : null;
+  $('card-row').classList.toggle('hidden', choice.mode !== 'test');
+  $('card').innerHTML = cards.map((c) => `<option value="${c.id}">${c.name}${c.manual ? ' (pilot-flown)' : ''}</option>`).join('');
+  $('card').value = choice.card;
+  $('card-summary').innerHTML = card ? `${card.summary}<br>${card.start === 'test-point' ? 'Starts airborne on the over-water test range.' : card.start === 'final' ? 'Starts on final approach to the destination below.' : card.fromCity ? `Departs ${card.fromCity}.` : 'Departs from the runway below.'}` : '';
+  // route
+  const places = placesFor(world, choice.aircraft);
   const fill = (sel, value) => {
     sel.innerHTML = places.map((p) => `<option value="${p.key}">${p.label}</option>`).join('');
     sel.value = places.some((p) => p.key === value) ? value : places[0].key;
   };
+  const city = (key) => key.split(':')[1];
+  if (card?.fromCity) choice.from = places.find((p) => city(p.key) === card.fromCity)?.key || choice.from;
   fill($('from'), choice.from);
   choice.from = $('from').value;
+  $('from').disabled = !!card?.fromCity;
   // default destination: the next city along (never the departure city)
-  const city = (key) => key.split(':')[1];
   const fromIdx = places.findIndex((p) => p.key === choice.from);
   const defaultTo = places.slice(fromIdx + 1).concat(places).find((p) => city(p.key) !== city(choice.from));
   fill($('to'), choice.to && city(choice.to) !== city(choice.from) ? choice.to : defaultTo.key);
   choice.to = $('to').value;
-  $('from-row').classList.toggle('hidden', choice.mode === 'landing');
+  const final = choice.mode === 'landing' || card?.start === 'final';
+  const airborne = card?.start === 'test-point';
+  $('from-row').classList.toggle('hidden', final || airborne);
+  $('to-row').classList.toggle('hidden', airborne);
+  $('route-label').textContent = airborne ? '3 · Fly' : '3 · Route';
   $('blurb').textContent = AIRCRAFT[choice.aircraft].blurb;
+  renderConditions();
+  renderHistory();
   previewMenuAircraft();
+}
+
+/** Conditions form: weather, airframe changes and failures. */
+function renderConditions() {
+  const groups = { windKt: 'Weather', massPct: 'Airframe (percent of baseline)', failEngines: 'Failures' };
+  const ac = AIRFRAMES[choice.aircraft];
+  $('cond').innerHTML = CONDITION_FIELDS.map(([k, label, unit, lo, hi, step]) => {
+    const max = k === 'failEngines' ? Math.min(hi, ac.engines) : hi;
+    const changed = choice.cond[k] !== DEFAULT_CONDITIONS[k];
+    return `${groups[k] ? `<div class="cond-group">${groups[k]}</div>` : ''}<label>${label}${unit ? ` (${unit})` : ''}<input type="number" data-cond="${k}" min="${lo}" max="${max}" step="${step}" value="${choice.cond[k]}" class="${changed ? 'changed' : ''}" /></label>`;
+  }).join('');
+  $('cond-text').textContent = describeConditions(choice.cond);
+  for (const el of document.querySelectorAll('[data-cond]')) {
+    el.addEventListener('change', () => {
+      choice.cond = normaliseConditions({ ...choice.cond, [el.dataset.cond]: el.value });
+      const ac2 = AIRFRAMES[choice.aircraft];
+      choice.cond.failEngines = Math.min(choice.cond.failEngines, ac2.engines);
+      renderConditions();
+      saveChoice();
+    });
+  }
+}
+
+function resetConditions() {
+  const card = choice.mode === 'test' ? cardById(choice.card) : null;
+  choice.cond = card ? cardConditions(card, choice.aircraft, world, choice) : { ...DEFAULT_CONDITIONS };
+}
+
+function renderHistory() {
+  const list = loadHistory();
+  if (!list.length) {
+    $('history').innerHTML = '<p class="subtle">No runs yet. Every flight is recorded; finished runs appear here.</p>';
+    return;
+  }
+  const keyResult = (m) => {
+    for (const k of ['takeoff_distance_35ft_m', 'touchdown_sink_fpm', 'fuel_kg_per_nm', 'energy_kwh_per_nm', 'max_mach']) if (m[k] != null) return `${METRICS[k][0]}: ${m[k].toLocaleString()} ${METRICS[k][1]}`;
+    return '';
+  };
+  $('history').innerHTML = `<table class="history"><tr><th>When</th><th>Aircraft</th><th>Scenario</th><th>Result</th><th>Key result</th><th>Conditions</th></tr>${list
+    .slice(0, 12)
+    .map((h) => `<tr><td>${new Date(h.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td>${AIRFRAMES[h.aircraft]?.name || h.aircraft}</td><td>${h.label}</td><td><span class="verdict ${h.verdict}">${h.verdict}</span></td><td>${keyResult(h.metrics)}</td><td class="subtle">${h.cond}</td></tr>`)
+    .join('')}</table>`;
 }
 
 async function previewMenuAircraft() {
   const id = choice.aircraft;
   await useAircraft(id);
   if (choice.aircraft !== id) return;
-  placeAt(placesFor(id).find((p) => p.key === choice.from) || placesFor(id)[0]);
+  const places = placesFor(world, id);
+  placeAt(physics, places.find((p) => p.key === choice.from) || places[0]);
   syncModel(0);
 }
 
 for (const el of document.querySelectorAll('[data-aircraft]')) el.addEventListener('click', () => {
   choice.aircraft = el.dataset.aircraft;
   choice.from = choice.to = null;
+  if (choice.mode === 'test') {
+    if (!cardsFor(choice.aircraft).some((c) => c.id === choice.card)) choice.card = cardsFor(choice.aircraft)[0].id;
+    resetConditions();
+  }
+  choice.cond.failEngines = Math.min(choice.cond.failEngines, AIRFRAMES[choice.aircraft].engines);
   renderMenu();
 });
 for (const el of document.querySelectorAll('[data-mode]')) el.addEventListener('click', () => {
+  const was = choice.mode;
   choice.mode = el.dataset.mode;
+  if (choice.mode === 'test' && was !== 'test') resetConditions();
   renderMenu();
 });
+$('card').addEventListener('change', (e) => {
+  choice.card = e.target.value;
+  resetConditions();
+  renderMenu();
+});
+$('cond-reset').addEventListener('click', () => {
+  resetConditions();
+  renderConditions();
+  saveChoice();
+});
+$('scn-save').addEventListener('click', () => download(`scenario-${fileStem(choice)}.json`, JSON.stringify(scenarioOf(choice), null, 2), 'application/json'));
+$('scn-link').addEventListener('click', () => copyLink(choice));
+$('scn-file').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try {
+    const sc = parseScenario(JSON.parse(await f.text()));
+    if (!sc) throw new Error('not a scenario');
+    Object.assign(choice, sc);
+    renderMenu();
+    toast(`Loaded scenario: ${describeConditions(choice.cond)}`, 4);
+  } catch {
+    toast('That file is not a United Coast scenario or report', 4);
+  }
+});
+$('endrun').addEventListener('click', () => {
+  if (!run) return;
+  setState('flying');
+  finish(mission.card ? `${mission.card.name}: ended early` : 'Flight report', '', true, 'ended');
+});
+$('dl-csv').addEventListener('click', () => run && download(`${fileStem(mission.setup)}.csv`, run.rec.toCSV(), 'text/csv'));
+$('dl-json').addEventListener('click', () => lastReport && download(`${fileStem(mission.setup)}-report.json`, JSON.stringify({ ...lastReport, events: run.rec.events }, null, 2), 'application/json'));
+$('dl-scn').addEventListener('click', () => mission && download(`scenario-${fileStem(mission.setup)}.json`, JSON.stringify(scenarioOf(mission.setup), null, 2), 'application/json'));
+$('cp-link').addEventListener('click', () => mission && copyLink(mission.setup));
 $('from').addEventListener('change', (e) => {
   choice.from = e.target.value;
   renderMenu();
@@ -806,8 +1152,11 @@ function frame(now) {
   if (state === 'flying') {
     readControls(dt);
     physics.step(dt);
+    const ended = run?.update(dt);
     handleEvents();
     tutorial?.update();
+    updateLiveCriteria();
+    if (ended && run.status === 'complete' && state === 'flying') finishTestCard();
   }
   syncModel(state === 'flying' ? dt : 0);
   if (model) {
@@ -850,6 +1199,10 @@ addEventListener('resize', () => {
 
 setState('menu');
 renderMenu();
+if (linkedScenario) {
+  $('cond-wrap').open = true;
+  toast('Shared scenario loaded: press Fly', 4);
+}
 requestAnimationFrame(frame);
 
 window.__game = {
@@ -861,5 +1214,6 @@ window.__game = {
   setState,
   get state() { return state; },
   get mission() { return mission; },
+  get run() { return run; },
   ready: true,
 };

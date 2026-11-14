@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sim": "node scripts/sim-run.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",
@@ -15,6 +16,6 @@
   "devDependencies": {
     "vite": "^8.3.6"
   },
-  "description": "Procedural F-22 Raptor in Three.js with thrust vectoring and internal weapons bays, flyable over Edwards AFB in CesiumJS",
+  "description": "United Coast: browser flight test and scenario simulator (F-22, Concorde, airliner, electric seaglider) with test cards, flight data recording and a headless batch runner",
   "license": "MIT"
 }

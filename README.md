@@ -8,15 +8,35 @@ It is also the visual front end for a planned aerial test and simulation platfor
 
 ## Play
 
-`npm run dev`, then open **http://localhost:5173**: the flight game.
+`npm run dev`, then open **http://localhost:5173**: **United Coast**, a flight test and scenario simulator.
 
-- **Tutorial** (start here): 16 interactive steps. Release the brake, throttle up, light the burner, rotate at 140 kt, gear and flaps up, climb, level off, turn to Lakeside Field, configure for landing, read the PAPI lights, flare, touch down and brake to a stop. Each step waits until you've actually done it.
-- **Free flight**: lined up on runway 09 at Raptor AFB; fly anywhere and land at either airport.
-- **Landing challenge**: start 5 nm out on final to Lakeside Field and get scored on the touchdown.
+**The map** is a 180 × 120 km continent of eight major US cities, surrounded by ocean. Seattle, San Francisco, Los Angeles, Denver, Dallas, Chicago (on its own Great Lake), New York and Miami each have a skyline, a landmark and an airport. Coastal cities also have a waterfront dock. Mountain ranges run between them. Every runway has markings, approach lights and PAPI glide-slope lights. Buildings are solid.
 
-The world is 80 × 80 km of terrain and coast with two airports. Each runway has markings, edge and approach lights, and PAPI glide-slope lights that change colour with your angle. The game shows a green HUD (pitch ladder, flight-path marker, speed, altitude, heading, vertical speed, G) and draws synthetic runway outlines to help you find the field. You also get a status panel, a map with your waypoint, on-screen controls (H hides them) and a pause menu with every key (Esc).
+**Four aircraft**, each with its own flight characteristics:
 
-The flight model is fly-by-wire like the real jet: ↓/↑ ask for G, so a centred stick holds your flight path, and ←/→ roll and hold the bank. On the ground there's thrust, friction, brakes and nose-wheel steering, and the gear is locked down by weight on wheels. Touchdowns are graded Butter, Smooth or Firm. Gear up, too much sink, wings not level, nose first, water or rough ground means a crash.
+| Aircraft | Character |
+| --- | --- |
+| F-22 Raptor | Stealth fighter: 9 G, thrust vectoring, afterburner, about Mach 2.3 |
+| Concorde | Supersonic airliner: Mach 2 cruise, reheat for takeoff and transonic acceleration |
+| Airliner (A320-class) | Subsonic twinjet: big flaps, Mach 0.78 cruise, Mach 0.9 limit |
+| Seaglider | Electric wing-in-ground-effect craft: floats, rises onto a hydrofoil, flies 15–45 ft over water |
+
+**Scenarios:**
+- **Tutorial** (start here): step by step, adapted to the aircraft (the seaglider gets a water version).
+- **Free flight**: from any runway or dock to any other.
+- **Landing challenge**: start on final and get graded on the touchdown.
+- **Test card**: a flight test with pass/fail criteria. See [Sim Lab](#sim-lab).
+
+The flight model is fly-by-wire: ↓/↑ ask for G (a centred stick holds the flight path), and ←/→ roll and hold the bank. The HUD shows indicated airspeed (KIAS), ground speed, altitude, Mach, G and vertical speed, and outlines nearby runways.
+
+Touchdowns are graded Butter, Smooth or Firm. Any of these is a crash:
+- gear up
+- too much sink
+- wings not level
+- landing in a crab
+- touching down nose first
+- water (or land, for the seaglider)
+- a building
 
 | Key | Action |
 | --- | --- |
@@ -31,6 +51,46 @@ The flight model is fly-by-wire like the real jet: ↓/↑ ask for G, so a centr
 | `V` · `R` · `H` · `Esc` | Camera (chase / cockpit / orbit) · restart · hide controls · pause |
 
 Other pages: **hangar.html** to inspect the jet and its systems up close, **flight.html** for the CesiumJS demo sortie over real Edwards AFB terrain.
+
+## Sim Lab
+
+The engineering layer, for aircraft programmes (supersonic, electric, seaglider) that need repeatable, reproducible flight scenarios. Full reference: **[docs/SIM_LAB.md](docs/SIM_LAB.md)**.
+
+- **Conditions:** wind (speed, direction, gusts, with a surface layer) and temperature (ISA deviation).
+- **Design what-ifs:** mass, thrust, zero-lift drag and CLmax as a percentage of the baseline. Rotation and approach speeds rescale automatically.
+- **Failures:** engine (or motor) failures triggered at an airspeed, with asymmetric yaw.
+- **Test cards** with pass/fail criteria:
+  - takeoff performance
+  - engine failure at rotation
+  - gusty crosswind landing
+  - hot & high departure (Denver, ISA+25)
+  - cruise efficiency (fuel or kWh per nm)
+  - transonic acceleration, including a sonic-boom check for supersonic time over land
+- **Flight data recorder:** 28 channels at 10 Hz, plus an event log (brake release, liftoff, 35 ft screen, engine failure, touchdown, stop) and live performance measurements.
+- **Report** after every flight:
+  - verdict, criteria and metrics
+  - deltas against your previous run of the same scenario
+  - altitude, airspeed and G charts
+  - downloads: CSV flight data, JSON report, the scenario file, or a shareable link that reproduces the exact scenario
+- **Batch runner** for automation, sweeps and CI:
+
+  ```bash
+  npm run sim                                                      # every automatable card × aircraft
+  npm run sim -- --aircraft airliner --card takeoff --sweep massPct=80:120:10
+  npm run sim -- --aircraft seaglider --card cruise --set windKt=15,windFrom=180
+  npm run sim -- --scenario my-scenario.json                       # a scenario saved from the game
+  ```
+
+  A scripted test pilot flies each card the same way every time. The runner writes `reports/<timestamp>/summary.md`, plus a JSON report and a CSV per run. It exits with code 1 if any run fails, so airframe-data changes can be gated in CI.
+
+Baseline results (standard day, calm):
+
+| Card | F-22 | Concorde | Airliner | Seaglider |
+| --- | --- | --- | --- | --- |
+| Takeoff distance to 35 ft | 661 m | 1,514 m | 1,205 m | liftoff after 538 m of water |
+| Same, Denver ISA+25 | 870 m | 2,065 m | 1,723 m | — |
+| Cruise burn | 5.5 kg/nm (M0.9) | 21.5 kg/nm (M2.0) | 5.2 kg/nm (M0.78) | 4.8 kWh/nm (130 kt) |
+| Transonic acceleration | M0.95→1.6 in 146 s | M0.95→1.8 in 275 s | — | — |
 
 ## What's in it
 
@@ -96,7 +156,7 @@ The panel on the right has everything else: Mach, demos (control exerciser, post
 <p align="center"><img src="docs/diagrams/today.png" width="900" alt="Procedural model modules feed F22.js, which drives the Three.js viewer and a GLB export animated in Cesium by a point-mass flight model and demo autopilot" /></p>
 
 - **One model, two front ends.** `src/f22` builds the aircraft; `F22.js` turns commands (stick, throttle, switches) into actuator positions at realistic rates, with control mixing and interlocks. The viewer renders it directly; the flight page exports it to glTF and animates the same parts.
-- **Physics is deliberately simple today**: a point-mass model good for demos and driving the visuals, not for engineering answers.
+- **Physics is a point-mass model:** it includes standard atmosphere, temperature deviation, wind and gusts, transonic wave drag, ground effect, thrust lapse and ram recovery, and engine failures. It gives credible trends and comparisons, such as how much takeoff distance grows with weight or how energy use changes with drag. It is not certified engineering data.
 
 ### Toward an aerial test and simulation platform
 
@@ -104,19 +164,22 @@ The panel on the right has everything else: Mach, demos (control exerciser, post
 
 | Layer | What it adds | Notes |
 | --- | --- | --- |
-| Test cards | Scenarios as data: initial conditions, manoeuvres, disturbances, pass/fail criteria | Versioned with the code so results are reproducible |
-| Orchestrator | Many headless runs, faster than real time: sweeps, Monte Carlo, CI on every change | The same scenario runs in batch or with a pilot in the loop |
+| Test cards | Scenarios as data: initial conditions, manoeuvres, disturbances, pass/fail criteria | **Built** (`src/sim/scenario.js`): six cards, conditions, failures, shareable scenarios |
+| Orchestrator | Many headless runs, faster than real time: sweeps, Monte Carlo, CI on every change | **Built in part** (`npm run sim`): batch runs and parameter sweeps with a scripted pilot; Monte Carlo is next |
 | 6-DOF flight dynamics | Aero tables, engine and mass models on a fixed time step | An open-source FDM such as JSBSim fits here; `flightModel.js` is the placeholder |
 | Flight control and sensors | Control laws, actuator limits, IMU / air data / GPS / radar models | Software-in-the-loop runs real flight code; hardware-in-the-loop swaps in real avionics |
-| Telemetry | Every signal of every run on a bus and in a time-series store | The 3D views become subscribers, so live view and replay share one stream |
-| Analysis and replay | Automatic criteria checks and reports; scrub any run in 3D | The HUDs already render state; they need a data source instead of a local sim |
+| Telemetry | Every signal of every run on a bus and in a time-series store | **Recorded locally** (`src/sim/recorder.js`: 28 channels, CSV); a shared store and live bus are next |
+| Analysis and replay | Automatic criteria checks and reports; scrub any run in 3D | **Reports built** (criteria, metrics, charts, run-to-run deltas); 3D replay is next |
 
-First steps: put the sim behind a state stream (WebSocket) that the viewers consume; replace the point-mass model with 6-DOF dynamics; define a test-card format and a headless runner; then record runs and add replay.
+Next steps: replace the point-mass model with 6-DOF dynamics and aero tables, feed in real airframe data, put the sim behind a state stream (WebSocket) that the viewers consume, then add 3D replay and Monte Carlo dispersions.
 
 ## Project layout
 
 ```
-index.html, src/game/       the flight game: physics, world (terrain, airports, PAPI), HUD, missions, tutorial
+index.html, src/game/       United Coast: physics (all four airframes), world (cities, airports, docks), HUD, missions, tutorial
+src/aircraft/               the four aircraft models (see CONTRACT.md)
+src/sim/                    Sim Lab: scenario.js (conditions, test cards, grading), recorder.js (flight data), testPilot.js
+scripts/sim-run.mjs         headless batch runner (npm run sim)
 hangar.html, src/main.js    hangar viewer: scene, light, panel, HUD, keyboard, demos
 src/world/world.js          air base, flight terrain, clouds
 src/f22/
