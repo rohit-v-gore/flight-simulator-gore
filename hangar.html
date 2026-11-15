@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F-22 Raptor · Hangar</title>
+    <link rel="icon" href="data:," />
+    <style>:root{--panel:#0a101899;--text:#e6edf3;--accent:#9fd8ff}html,body{height:100%;color:var(--text);background:#8fa6bd;margin:0;font:12px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}canvas{display:block}.card{background:var(--panel);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);pointer-events:none;-webkit-user-select:none;user-select:none;border-radius:10px;position:fixed}#hud{width:236px;padding:10px 12px 12px;top:14px;left:14px}#hud h1{letter-spacing:.05em;margin:0 0 6px;font-size:14px;font-weight:650}#planform{width:220px;height:180px;margin:0 auto 6px;display:block}#readout b{color:var(--accent);font-weight:600}#readout .dim{color:#9aa7b3}#readout .warn{color:#ffb36b}#help{color:#d5dde5;padding:8px 12px;font-size:11.5px;line-height:1.65;bottom:12px;left:14px}kbd{text-align:center;background:#ffffff29;border-radius:3px;min-width:14px;padding:0 4px;font:600 11px ui-monospace,monospace;display:inline-block}#loading{letter-spacing:.05em;place-items:center;font-size:15px;display:grid;position:fixed;inset:0}@media (width<=700px){#help{display:none}}</style>
+    <script type="module" crossorigin src="./assets/hangar-Bqr0fNyq.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="./assets/three.core-BF58tRDi.js">
+    <link rel="modulepreload" crossorigin href="./assets/Sky-C_-scKR3.js">
+    <link rel="modulepreload" crossorigin href="./assets/lil-gui.esm-BQnPY0kr.js">
+    <link rel="modulepreload" crossorigin href="./assets/geom-BTVhDE-O.js">
+    <link rel="modulepreload" crossorigin href="./assets/BufferGeometryUtils-BwlSqH3T.js">
+    <link rel="modulepreload" crossorigin href="./assets/F22-BTk-PUZO.js">
+    <link rel="modulepreload" crossorigin href="./assets/world-CPKR7LQb.js">
+  </head>
+  <body>
+    <div id="loading">Building the airframe…</div>
+    <div id="hud" class="card">
+      <h1>F-22 RAPTOR</h1>
+      <canvas id="planform" width="440" height="360"></canvas>
+      <div id="readout"></div>
+    </div>
+    <div id="help" class="card">
+      <kbd>W</kbd> main bay · <kbd>S</kbd> side bays · <kbd>V</kbd> thrust vectoring · <kbd>F</kbd> high lift · <kbd>G</kbd> gear ·
+      <kbd>C</kbd> canopy · <kbd>H</kbd> hook · <kbd>B</kbd> speed brake · <kbd>A</kbd> afterburner<br />
+      <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> stick · <kbd>Q</kbd><kbd>E</kbd> rudder · <kbd>L</kbd> lights ·
+      <kbd>R</kbd> auto-rotate · <kbd>1</kbd>–<kbd>8</kbd> views<br />
+      <kbd>P</kbd> parking brake · <kbd>+</kbd><kbd>-</kbd> throttle · <kbd>Space</kbd> brakes · <kbd>Q</kbd><kbd>E</kbd> steer · <kbd>↓</kbd> rotate at 140 kt to take off · drag to orbit, scroll to zoom
+    </div>
+  </body>
+</html>

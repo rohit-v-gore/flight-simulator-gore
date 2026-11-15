@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>United Coast · flight test & scenario simulator</title>
+    <link rel="icon" href="data:," />
+    <style>:root{--panel:#080e14b8;--line:#a0dcff2e;--text:#e8eef4;--dim:#93a3b2;--accent:#7fdcff;--good:#6dff9a;--warn:#ffb35c;--bad:#ff6b5c}*{box-sizing:border-box}html,body{height:100%;color:var(--text);background:#0b1218;margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}#view canvas{display:block}#hud{pointer-events:none;width:100vw;height:100vh;position:fixed;inset:0}.panel{background:var(--panel);border:1px solid var(--line);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:12px;position:fixed}kbd{text-align:center;color:#fff;background:#ffffff24;border:1px solid #ffffff38;border-bottom-width:2px;border-radius:5px;min-width:20px;margin:0 1px;padding:1px 6px;font:600 12px ui-monospace,Menlo,monospace;display:inline-block}.hidden,body:not([data-state=flying]):not([data-state=paused]) .flight-ui{display:none!important}#objective{width:min(560px,92vw);padding:12px 16px;top:14px;left:50%;transform:translate(-50%)}#objective h3{letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-size:13px}#objective p{margin:0}#objective ul{margin:6px 0 0;padding-left:18px}#objective .progress{color:var(--good);margin-top:8px;font-size:13px}#status{min-width:270px;padding:10px 12px;font:12px/1.9 ui-monospace,Menlo,monospace;bottom:14px;left:14px}#status b{color:var(--accent);font-weight:600}#status .dim{color:var(--dim)}.bar{vertical-align:middle;background:#ffffff1f;border-radius:4px;width:90px;height:8px;margin:0 6px;display:inline-block;overflow:hidden}.bar i{background:linear-gradient(90deg,#6dff9a,#ffd24a);height:100%;display:block}.flag{color:var(--dim);border:1px solid #ffffff1f;border-radius:4px;margin-right:4px;padding:0 6px;display:inline-block}.flag.on{color:var(--good);border-color:#6dff9a80}.flag.warn{color:var(--warn);border-color:#ffb35c99}.flag.hot{color:#ff8c4a;border-color:#ff8c4ab3}#mapwrap{padding:8px;bottom:14px;right:14px}#map{border-radius:8px;width:220px;height:220px;display:block}#controls{grid-template-columns:repeat(3,auto);gap:2px 22px;padding:8px 14px;font-size:12px;display:grid;bottom:14px;left:50%;transform:translate(-50%)}#controls div{white-space:nowrap}#controls .head{color:var(--dim);text-align:center;grid-column:1/-1;font-size:11px}#toast{opacity:0;pointer-events:none;background:#080e14cc;border-radius:22px;padding:10px 18px;font-weight:600;transition:opacity .25s;position:fixed;top:40%;left:50%;transform:translate(-50%,-50%)}#toast.show{opacity:1}#waypoint{color:var(--good);pointer-events:none;white-space:nowrap;background:#143c1ecc;border-radius:10px;padding:2px 8px;font:600 12px system-ui;display:none;position:fixed;transform:translate(-50%,-150%)}@media (width<=1100px){#controls{display:none}}.screen{background:radial-gradient(#050a0f59,#050a0fcc);place-items:center;display:grid;position:fixed;inset:0}.card{border:1px solid var(--line);background:#080e14db;border-radius:16px;width:min(720px,94vw);padding:28px 30px}.card h1{letter-spacing:.08em;margin:0;font-size:34px}.card h1 small{letter-spacing:.12em;color:var(--dim);margin-top:4px;font-size:13px;font-weight:500;display:block}.card h2{margin:0 0 12px;font-size:22px}.modes{grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0 16px;display:grid}.mode{text-align:left;border:1px solid var(--line);color:var(--text);cursor:pointer;font:inherit;background:#ffffff0a;border-radius:12px;padding:14px}.mode:hover{border-color:var(--accent);background:#7fdcff1f}.mode b{margin-bottom:4px;font-size:16px;display:block}.mode span{color:var(--dim);font-size:13px}.mode.primary{border-color:#6dff9a99}.keys{color:var(--dim);grid-template-columns:repeat(2,1fr);gap:4px 24px;font-size:13px;display:grid}.keys div{justify-content:space-between;gap:10px;display:flex}.keys span:last-child{color:var(--text)}.row{flex-wrap:wrap;gap:10px;margin-top:18px;display:flex}.btn{border:1px solid var(--line);color:var(--text);cursor:pointer;background:#ffffff0f;border-radius:10px;padding:10px 18px;font:600 14px system-ui;text-decoration:none}.btn.primary{background:var(--accent);color:#04121a;border-color:var(--accent)}#debrief-title.good{color:var(--good)}#debrief-title.bad{color:var(--bad)}.foot{color:var(--dim);margin-top:14px;font-size:12px}.foot a{color:var(--accent)}.card.wide{width:min(880px,95vw);max-height:94vh;overflow-y:auto}.label{letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:18px 0 8px;font-size:12px}.modes.four{grid-template-columns:repeat(4,1fr)}.card .modes{margin:0}.mode.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#7fdcff24}.blurb{color:var(--dim);min-height:18px;margin:8px 0 0;font-size:13px}.route{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.route label{color:var(--dim);align-items:center;gap:8px;display:flex}.route select{color:var(--text);border:1px solid var(--line);font:inherit;background:#0f1a24;border-radius:8px;min-width:230px;padding:8px 10px}.keys-wrap{margin-top:16px}.keys-wrap summary{cursor:pointer;color:var(--accent);margin-bottom:8px}#map{width:260px;height:173px}@media (width<=760px){.modes.four{grid-template-columns:1fr 1fr}}.sim-row{flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px;display:flex}.sim-row select{color:var(--text);border:1px solid var(--line);font:inherit;background:#0f1a24;border-radius:8px;min-width:300px;padding:8px 10px}.card-summary{color:var(--dim);margin:8px 0 0;font-size:13px}.cond-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px 14px;margin-top:6px;display:grid}.cond-grid label{color:var(--dim);flex-direction:column;gap:3px;font-size:12px;display:flex}.cond-grid input{color:var(--text);border:1px solid var(--line);background:#0f1a24;border-radius:7px;width:100%;padding:6px 8px;font:13px ui-monospace,Menlo,monospace}.cond-grid input.changed{border-color:var(--warn)}.cond-group{letter-spacing:.1em;text-transform:uppercase;color:var(--accent);grid-column:1/-1;margin-top:6px;font-size:11px}.cond-note{color:var(--dim);margin:6px 0 0;font-size:12px}.btn.small{padding:6px 12px;font-size:13px}.history{border-collapse:collapse;width:100%;margin-top:6px;font-size:12px}.history td,.history th{border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;padding:4px 8px}.history th{color:var(--dim);font-weight:500}.verdict{letter-spacing:.06em;border:1px solid;border-radius:6px;padding:2px 10px;font:700 13px ui-monospace,Menlo,monospace;display:inline-block}.verdict.PASS{color:var(--good)}.verdict.FAIL,.verdict.CRASH{color:var(--bad)}.verdict.INCOMPLETE,.verdict.RECORDED{color:var(--warn)}#debrief .card{width:min(1040px,96vw);max-height:94vh;overflow-y:auto}.crit{gap:4px;margin:10px 0;padding:0;list-style:none;display:grid}.crit li{align-items:baseline;gap:10px;display:flex}.crit .mark{width:18px;font-weight:700}.crit .ok{color:var(--good)}.crit .no{color:var(--bad)}.crit .val{color:var(--dim);margin-left:auto;font:12px ui-monospace,Menlo,monospace}.metrics{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin:12px 0;display:grid}.metric{border:1px solid var(--line);background:#ffffff08;border-radius:8px;padding:8px 10px}.metric span{color:var(--dim);font-size:11px;display:block}.metric b{font:600 16px ui-monospace,Menlo,monospace}.metric i{color:var(--dim);margin-left:6px;font-size:11px;font-style:normal}.charts{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;display:grid}.chart{border:1px solid var(--line);background:#ffffff05;border-radius:8px;padding:8px;position:relative}.chart h4{color:var(--text);margin:0 0 4px;font-size:12px;font-weight:600}.chart canvas{cursor:crosshair;width:100%;height:150px;display:block}.chart .tip{pointer-events:none;border:1px solid var(--line);white-space:nowrap;background:#080e14f2;border-radius:6px;padding:3px 8px;font:12px ui-monospace,Menlo,monospace;display:none;position:absolute}.subtle{color:var(--dim);font-size:12px}#livecrit{margin-top:8px;font-size:12px}#livecrit div{color:var(--dim)}#livecrit div.ok{color:var(--good)}#loading{letter-spacing:.06em;place-items:center;font-size:15px;display:grid;position:fixed;inset:0}@media (width<=700px){.modes,.keys{grid-template-columns:1fr}}</style>
+    <script type="module" crossorigin src="./assets/game-BOOGhVKX.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="./assets/three.core-BF58tRDi.js">
+    <link rel="modulepreload" crossorigin href="./assets/Sky-C_-scKR3.js">
+    <link rel="modulepreload" crossorigin href="./assets/world-CPKR7LQb.js">
+    <link rel="modulepreload" crossorigin href="./assets/preload-helper-DclECHGd.js">
+  </head>
+  <body data-state="menu">
+    <div id="view"></div>
+    <canvas id="hud"></canvas>
+    <div id="loading">Building United Coast…</div>
+
+    <div id="objective" class="panel flight-ui"></div>
+    <div id="status" class="panel flight-ui"></div>
+    <div id="mapwrap" class="panel flight-ui"><canvas id="map" width="520" height="347"></canvas></div>
+    <div id="controls" class="panel flight-ui">
+      <div><kbd>↓</kbd><kbd>↑</kbd> pull / push</div>
+      <div><kbd>←</kbd><kbd>→</kbd> roll</div>
+      <div><kbd>A</kbd><kbd>D</kbd> rudder / steer</div>
+      <div><kbd>W</kbd><kbd>S</kbd> throttle</div>
+      <div><kbd>X</kbd> afterburner</div>
+      <div><kbd>Space</kbd> brakes</div>
+      <div><kbd>G</kbd> gear · <kbd>F</kbd>/<kbd>⇧F</kbd> flaps ↓/↑</div>
+      <div><kbd>P</kbd> parking brake</div>
+      <div><kbd>B</kbd> speed brake</div>
+      <div class="head"><kbd>V</kbd> camera · <kbd>R</kbd> restart · <kbd>H</kbd> hide · <kbd>Esc</kbd> pause / all controls</div>
+    </div>
+    <div id="waypoint"></div>
+    <div id="toast"></div>
+
+    <div id="menu" class="screen">
+      <div class="card wide">
+        <h1>UNITED COAST <small>FLIGHT TEST &amp; SCENARIO SIMULATOR · 8 CITIES · 4 AIRCRAFT · SIM LAB</small></h1>
+        <div class="label">1 · Aircraft</div>
+        <div class="modes four">
+          <button class="mode" data-aircraft="f22"><b>F-22 Raptor</b><span>Stealth fighter · Mach 2 · thrust vectoring</span></button>
+          <button class="mode" data-aircraft="concorde"><b>Concorde</b><span>Supersonic airliner · Mach 2 cruise</span></button>
+          <button class="mode" data-aircraft="airliner"><b>Airliner</b><span>A320-class twinjet · subsonic</span></button>
+          <button class="mode" data-aircraft="seaglider"><b>Seaglider</b><span>Electric WIG craft · water only</span></button>
+        </div>
+        <p id="blurb" class="blurb"></p>
+        <div class="label">2 · Scenario</div>
+        <div class="modes four">
+          <button class="mode" data-mode="tutorial"><b>Tutorial</b><span>Step by step: take off, fly the route and land. Start here.</span></button>
+          <button class="mode" data-mode="free"><b>Free flight</b><span>Depart, fly anywhere, land anywhere. The ring shows your route.</span></button>
+          <button class="mode" data-mode="landing"><b>Landing challenge</b><span>Start on final approach and get scored on the touchdown.</span></button>
+          <button class="mode" data-mode="test"><b>Test card</b><span>Flight-test a scenario with pass/fail criteria, data recording and a report.</span></button>
+        </div>
+        <div id="card-row" class="hidden">
+          <div class="sim-row"><select id="card"></select></div>
+          <p id="card-summary" class="card-summary"></p>
+        </div>
+        <div class="label" id="route-label">3 · Route</div>
+        <div class="route">
+          <label id="from-row">From <select id="from"></select></label>
+          <label id="to-row">To <select id="to"></select></label>
+          <button class="btn primary" id="go">Fly ▸</button>
+        </div>
+        <details class="keys-wrap" id="cond-wrap">
+          <summary>Conditions: <span id="cond-text"></span></summary>
+          <div class="cond-grid" id="cond"></div>
+          <div class="sim-row">
+            <button class="btn small" id="cond-reset">Reset to defaults</button>
+            <button class="btn small" id="scn-save">Save scenario (.json)</button>
+            <label class="btn small" for="scn-file">Load scenario…</label><input type="file" id="scn-file" accept=".json,application/json" hidden />
+            <button class="btn small" id="scn-link">Copy scenario link</button>
+          </div>
+          <p class="cond-note">Wind is reported at 10 m (it strengthens with height and gusts vary over time). Mass, thrust, drag and CLmax are percentages of the baseline airframe; rotation and approach speeds scale automatically. Failed engines are on the left wing, so the aircraft yaws left.</p>
+        </details>
+        <details class="keys-wrap" id="hist-wrap">
+          <summary>Recent runs</summary>
+          <div id="history"></div>
+        </details>
+        <details class="keys-wrap">
+          <summary>Controls</summary>
+          <div class="keys">
+            <div><span>Pull / push (pitch)</span><span><kbd>↓</kbd> <kbd>↑</kbd></span></div>
+            <div><span>Roll</span><span><kbd>←</kbd> <kbd>→</kbd></span></div>
+            <div><span>Rudder / steering</span><span><kbd>A</kbd> <kbd>D</kbd></span></div>
+            <div><span>Throttle up / down</span><span><kbd>W</kbd> <kbd>S</kbd></span></div>
+            <div><span>Afterburner (F-22, Concorde)</span><span><kbd>X</kbd></span></div>
+            <div><span>Brakes (hold) · parking brake</span><span><kbd>Space</kbd> <kbd>P</kbd></span></div>
+            <div><span>Gear / hydrofoil · speed brake</span><span><kbd>G</kbd> <kbd>B</kbd></span></div>
+            <div><span>Flaps down / up</span><span><kbd>F</kbd> <kbd>Shift</kbd>+<kbd>F</kbd></span></div>
+            <div><span>Bays · vectoring (F-22)</span><span><kbd>O</kbd> <kbd>K</kbd></span></div>
+            <div><span>Camera · restart · pause</span><span><kbd>V</kbd> <kbd>R</kbd> <kbd>Esc</kbd></span></div>
+          </div>
+        </details>
+        <p class="foot">Inspect the F-22 in the <a href="hangar.html">hangar</a>, or fly it over real terrain in the <a href="flight.html">globe flight</a>.</p>
+      </div>
+    </div>
+
+    <div id="pause" class="screen hidden">
+      <div class="card">
+        <h2>Paused</h2>
+        <div class="keys">
+          <div><span>Pull / push (pitch)</span><span><kbd>↓</kbd> <kbd>↑</kbd></span></div>
+          <div><span>Roll</span><span><kbd>←</kbd> <kbd>→</kbd></span></div>
+          <div><span>Rudder / steering</span><span><kbd>A</kbd> <kbd>D</kbd></span></div>
+          <div><span>Throttle</span><span><kbd>W</kbd> <kbd>S</kbd></span></div>
+          <div><span>Afterburner</span><span><kbd>X</kbd></span></div>
+          <div><span>Brakes · Parking brake</span><span><kbd>Space</kbd> <kbd>P</kbd></span></div>
+          <div><span>Gear · Speed brake</span><span><kbd>G</kbd> <kbd>B</kbd></span></div>
+          <div><span>Flaps down / up</span><span><kbd>F</kbd> <kbd>Shift</kbd>+<kbd>F</kbd></span></div>
+          <div><span>Bays · Vectoring · Canopy</span><span><kbd>O</kbd> <kbd>K</kbd> <kbd>C</kbd></span></div>
+          <div><span>Camera</span><span><kbd>V</kbd></span></div>
+          <div><span>Restart</span><span><kbd>R</kbd></span></div>
+        </div>
+        <p class="foot"><b>Flying tips:</b> the stick asks for G, so let go and the jet holds its path. Rotate at the Vr the tutorial gives (KIAS on the HUD). Land with gear and flaps down, on 2 white + 2 red PAPI lights, and flare just above the runway.</p>
+        <div class="row">
+          <button class="btn primary" id="resume">Resume (Esc)</button>
+          <button class="btn" id="restart">Restart</button>
+          <button class="btn" id="endrun">End &amp; report</button>
+          <button class="btn" data-menu>Main menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="debrief" class="screen hidden">
+      <div class="card">
+        <h2 id="debrief-title"></h2>
+        <p id="debrief-text"></p>
+        <div id="report"></div>
+        <div class="row">
+          <button class="btn primary" id="retry">Fly again (Enter)</button>
+          <button class="btn" data-menu>Main menu</button>
+          <button class="btn" id="dl-csv">Flight data (.csv)</button>
+          <button class="btn" id="dl-json">Report (.json)</button>
+          <button class="btn" id="dl-scn">Scenario (.json)</button>
+          <button class="btn" id="cp-link">Copy scenario link</button>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>

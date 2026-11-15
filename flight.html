@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>F-22 Raptor — Edwards AFB flight</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/Widgets/widgets.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/Cesium.js"></script>
+    <style>html,body,#globe{background:#05070a;width:100%;height:100%;margin:0;overflow:hidden}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.cesium-viewer-bottom{opacity:.6}#status{color:#e4ebf2;letter-spacing:.04em;pointer-events:none;z-index:20;white-space:pre-wrap;text-align:center;place-items:center;font-size:15px;display:grid;position:fixed;inset:0}#status.err{color:#ffa4a4}.panel{z-index:10;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#e8eef4;pointer-events:none;background:#0a0e149e;border:1px solid #ffffff14;border-radius:10px;padding:10px 14px;position:fixed}#hud{min-width:250px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;top:12px;left:12px}#hud .title{letter-spacing:.08em;margin-bottom:4px;font:650 13px system-ui,sans-serif}#hud .k{color:#8fb7d6;width:46px;display:inline-block}#hud .warn{color:#ffb36b}#banner{white-space:nowrap;border-radius:18px;padding:6px 16px;font-size:13px;transition:opacity .4s;top:14px;left:50%;transform:translate(-50%)}#help{font-size:11.5px;line-height:1.6;bottom:30px;left:12px}#help kbd{text-align:center;background:#ffffff29;border-radius:3px;min-width:16px;margin-right:4px;padding:0 4px;font:600 11px ui-monospace,monospace;display:inline-block}#help.hidden{display:none}</style>
+    <script type="module" crossorigin src="./assets/flight-DLzjbDIf.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="./assets/three.core-BF58tRDi.js">
+    <link rel="modulepreload" crossorigin href="./assets/geom-BTVhDE-O.js">
+    <link rel="modulepreload" crossorigin href="./assets/BufferGeometryUtils-BwlSqH3T.js">
+    <link rel="modulepreload" crossorigin href="./assets/F22-BTk-PUZO.js">
+  </head>
+  <body>
+    <div id="globe"></div>
+    <div id="status">Loading CesiumJS…</div>
+    <div id="hud" class="panel"></div>
+    <div id="banner" class="panel" style="opacity: 0"></div>
+    <div id="help" class="panel">
+      <div><kbd>P</kbd>demo ↔ manual · <kbd>V</kbd>camera · <kbd>T</kbd>time ×1/×2/×4 · <kbd>R</kbd>restart · <kbd>H</kbd>hide help</div>
+      <div><kbd>↓</kbd><kbd>↑</kbd>pull / push · <kbd>←</kbd><kbd>→</kbd>roll · <kbd>Q</kbd><kbd>E</kbd>rudder / steering</div>
+      <div><kbd>W</kbd><kbd>S</kbd>throttle · <kbd>A</kbd>afterburner · <kbd>Space</kbd>brakes · <kbd>G</kbd>gear · <kbd>F</kbd>flaps</div>
+      <div><kbd>B</kbd>speed brake · <kbd>O</kbd>weapons bays · <kbd>K</kbd>thrust vectoring · <kbd>C</kbd>canopy (stopped)</div>
+    </div>
+  </body>
+</html>
