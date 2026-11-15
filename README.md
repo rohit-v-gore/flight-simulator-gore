@@ -8,7 +8,7 @@ It is also the visual front end for a planned aerial test and simulation platfor
 
 ## Play
 
-`npm run dev`, then open **http://localhost:5173**: **United Coast**, a flight test and scenario simulator.
+**Play it now: https://rohit-v-gore.github.io/flight-simulator-gore/** (desktop browser with a keyboard). Or run it locally with `npm run dev` and open **http://localhost:5173**: **United Coast**, a flight test and scenario simulator.
 
 **The map** is a 180 × 120 km continent of eight major US cities, surrounded by ocean. Seattle, San Francisco, Los Angeles, Denver, Dallas, Chicago (on its own Great Lake), New York and Miami each have a skyline, a landmark and an airport. Coastal cities also have a waterfront dock. Mountain ranges run between them. Every runway has markings, approach lights and PAPI glide-slope lights. Buildings are solid.
 
@@ -126,7 +126,10 @@ Needs Node.js 20.19+ (or 22.12+) and a WebGL 2 browser.
 npm install
 npm run dev          # game: http://localhost:5173 · hangar: /hangar.html · globe flight: /flight.html
 npm run build        # production build in dist/
+npm run deploy       # build and publish dist/ to the gh-pages branch (GitHub Pages)
 ```
+
+`npm run deploy` publishes the current local code, so commit and push first; the site updates about a minute later.
 
 The flight page loads CesiumJS from a CDN. For your own Cesium ion token (optional), copy `.env.example` to `.env` and fill it in. Flight page options: `?mode=manual`, `?camera=cockpit|flyby|free`, `?livery=ghost`, `?buildings=0`, `?shadows=0`.
 
