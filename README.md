@@ -1,5 +1,10 @@
 # F-22 Raptor
 
+<p align="center">
+  <a href="https://rohit-v-gore.github.io/flight-simulator-gore/"><b>▶ Play it in your browser: rohit-v-gore.github.io/flight-simulator-gore</b></a><br>
+  <sub>No install or sign-up. Fly the F-22, Concorde, an airliner or an electric seaglider over United Coast. Needs a desktop browser and a keyboard.</sub>
+</p>
+
 A procedural F-22A Raptor for the browser, built in [Three.js](https://threejs.org/): every surface is generated from published dimensions in code, with no 3D model files or image textures. It has working control surfaces, 2D thrust-vectoring nozzles, internal weapons bays and landing gear, a world to sit in, and a CesiumJS page where it flies a demo sortie over Edwards AFB on real terrain.
 
 It is also the visual front end for a planned aerial test and simulation platform (see [System design](#system-design)).
